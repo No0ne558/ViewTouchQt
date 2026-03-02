@@ -8,6 +8,7 @@
 
 #include <QColorDialog>
 #include <QFormLayout>
+#include <QHBoxLayout>
 #include <QDialogButtonBox>
 #include <QGroupBox>
 #include <QVBoxLayout>
@@ -131,8 +132,27 @@ void PropertyDialog::setupUi()
     setButtonColor(m_bgColorBtn, m_bgColor);
     connect(m_bgColorBtn, &QPushButton::clicked, this, [this]() {
         chooseColor(m_bgColorBtn, m_bgColor);
+        // Uncheck transparent when user picks a colour
+        if (m_bgColor.alpha() == 255 && m_bgTransChk->isChecked())
+            m_bgTransChk->setChecked(false);
     });
-    styleForm->addRow(QStringLiteral("Background:"), m_bgColorBtn);
+
+    m_bgTransChk = new QCheckBox(QStringLiteral("Transparent"));
+    m_bgTransChk->setChecked(m_bgColor == Qt::transparent || m_bgColor.alpha() == 0);
+    m_bgColorBtn->setEnabled(!m_bgTransChk->isChecked());
+    connect(m_bgTransChk, &QCheckBox::toggled, this, [this](bool on) {
+        m_bgColorBtn->setEnabled(!on);
+        if (on) {
+            m_bgColor = Qt::transparent;
+            setButtonColor(m_bgColorBtn, m_bgColor);
+        }
+    });
+
+    auto *bgRow = new QHBoxLayout;
+    bgRow->addWidget(m_bgColorBtn);
+    bgRow->addWidget(m_bgTransChk);
+    bgRow->addStretch();
+    styleForm->addRow(QStringLiteral("Background:"), bgRow);
 
     m_textColorBtn = new QPushButton;
     m_textColorBtn->setFixedSize(60, 30);
@@ -259,9 +279,17 @@ void PropertyDialog::chooseColor(QPushButton *btn, QColor &target)
 
 void PropertyDialog::setButtonColor(QPushButton *btn, const QColor &c)
 {
-    btn->setStyleSheet(
-        QStringLiteral("background-color: %1; border: 1px solid #888;")
-            .arg(c.name()));
+    if (c.alpha() == 0) {
+        // Checkerboard pattern signals "transparent"
+        btn->setStyleSheet(QStringLiteral(
+            "background: qlineargradient(x1:0,y1:0,x2:1,y2:1,"
+            "stop:0 #ccc, stop:0.5 #ccc, stop:0.5 #888, stop:1 #888);"
+            "border: 1px solid #888;"));
+    } else {
+        btn->setStyleSheet(
+            QStringLiteral("background-color: %1; border: 1px solid #888;")
+                .arg(c.name()));
+    }
 }
 
 void PropertyDialog::applyChanges()

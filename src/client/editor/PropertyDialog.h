@@ -66,6 +66,7 @@ private:
 
     QPushButton *m_bgColorBtn   = nullptr;
     QPushButton *m_textColorBtn = nullptr;
+    QCheckBox   *m_bgTransChk   = nullptr;
 
     QColor m_bgColor;
     QColor m_textColor;
