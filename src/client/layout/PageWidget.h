@@ -64,6 +64,11 @@ public:
     /// Remove an element by id.  Returns true if found.
     bool removeElement(const QString &id);
 
+    /// Replace an element with a new one of a different type, preserving
+    /// common properties (position, size, colours, label, font, radius).
+    /// Returns the new element, or nullptr if the id was not found.
+    UiElement *replaceElementType(const QString &id, ElementType newType);
+
     /// Look up an element by id (nullptr if not found).
     UiElement *element(const QString &id) const;
 

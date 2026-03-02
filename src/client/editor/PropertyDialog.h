@@ -8,6 +8,7 @@
 
 #include <QCheckBox>
 #include <QDialog>
+#include <QGroupBox>
 #include <QLineEdit>
 #include <QSpinBox>
 #include <QComboBox>
@@ -22,15 +23,30 @@ class PropertyDialog : public QDialog {
 public:
     explicit PropertyDialog(UiElement *element, QWidget *parent = nullptr);
 
+    /// Whether the user changed the element type.
+    bool typeChanged() const { return m_originalType != m_newType; }
+
+    /// The element type selected by the user (may differ from original).
+    ElementType newType() const { return m_newType; }
+
+    // ── Type-specific property getters (for post-replacement application) ──
+    bool    pinMasked() const;
+    int     pinMaxLength() const;
+    QString keypadValue() const;
+    int     actionTypeValue() const;
+
 private slots:
     void chooseColor(QPushButton *btn, QColor &target);
     void applyChanges();
+    void onTypeChanged(int index);
 
 private:
     void setupUi();
     void setButtonColor(QPushButton *btn, const QColor &c);
 
     UiElement *m_element;
+    ElementType m_originalType;
+    ElementType m_newType;
 
     QLineEdit *m_idEdit       = nullptr;
     QLineEdit *m_labelEdit    = nullptr;
@@ -46,6 +62,14 @@ private:
 
     QColor m_bgColor;
     QColor m_textColor;
+
+    // Type selector
+    QComboBox *m_typeCombo = nullptr;
+
+    // Type-specific groups (always created, shown/hidden based on type)
+    QGroupBox *m_pinGroup = nullptr;
+    QGroupBox *m_kpdGroup = nullptr;
+    QGroupBox *m_actGroup = nullptr;
 
     // Type-specific widgets
     QLineEdit *m_keyValueEdit    = nullptr;   // KeypadButton

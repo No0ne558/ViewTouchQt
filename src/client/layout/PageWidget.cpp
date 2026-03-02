@@ -132,6 +132,82 @@ bool PageWidget::removeElement(const QString &id)
     return true;
 }
 
+// ── Type replacement ────────────────────────────────────────────────────────
+
+UiElement *PageWidget::replaceElementType(const QString &id, ElementType newType)
+{
+    auto it = m_elements.find(id);
+    if (it == m_elements.end())
+        return nullptr;
+
+    UiElement *old = it.value();
+    if (old->elementType() == newType)
+        return old;  // nothing to do
+
+    // Capture common properties from the old element
+    const qreal  x      = old->pos().x();
+    const qreal  y      = old->pos().y();
+    const qreal  w      = old->elementW();
+    const qreal  h      = old->elementH();
+    const QString label  = old->label();
+    const QColor  bg     = old->bgColor();
+    const QColor  text   = old->textColor();
+    const int     fsize  = old->fontSize();
+    const qreal   radius = old->cornerRadius();
+
+    // Remove old element from scene and hash (and delete it)
+    if (m_currentScene)
+        m_currentScene->removeItem(old);
+    m_elements.erase(it);
+    delete old;
+
+    // Create new element of the desired type using existing factory methods
+    UiElement *created = nullptr;
+    switch (newType) {
+    case ElementType::Button: {
+        auto *btn = addButton(id, x, y, w, h, label);
+        created = btn;
+        break;
+    }
+    case ElementType::Label: {
+        auto *lbl = addLabel(id, x, y, w, h, label);
+        created = lbl;
+        break;
+    }
+    case ElementType::Panel: {
+        auto *pnl = addPanel(id, x, y, w, h);
+        pnl->setLabel(label);
+        created = pnl;
+        break;
+    }
+    case ElementType::PinEntry: {
+        auto *pin = addPinEntry(id, x, y, w, h);
+        pin->setLabel(label);
+        created = pin;
+        break;
+    }
+    case ElementType::KeypadButton: {
+        auto *kpd = addKeypadButton(id, x, y, w, h, label);
+        created = kpd;
+        break;
+    }
+    case ElementType::ActionButton: {
+        auto *act = addActionButton(id, x, y, w, h, label, ActionType::Login);
+        created = act;
+        break;
+    }
+    }
+
+    if (created) {
+        created->setBgColor(bg);
+        created->setTextColor(text);
+        created->setFontSize(fsize);
+        created->setCornerRadius(radius);
+    }
+
+    return created;
+}
+
 UiElement *PageWidget::element(const QString &id) const
 {
     return m_elements.value(id, nullptr);

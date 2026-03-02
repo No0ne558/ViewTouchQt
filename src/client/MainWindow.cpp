@@ -159,8 +159,44 @@ void MainWindow::openPropertyDialog(UiElement *elem)
 {
     PropertyDialog dlg(elem, this);
     if (dlg.exec() == QDialog::Accepted) {
+        UiElement *target = elem;
+
+        // If the user changed the element type, replace it on the page
+        if (dlg.typeChanged()) {
+            auto *page = m_engine->activePage();
+            if (page) {
+                auto *replacement = page->replaceElementType(
+                    elem->elementId(), dlg.newType());
+                if (replacement) {
+                    target = replacement;
+
+                    // Apply type-specific properties from the dialog
+                    switch (dlg.newType()) {
+                    case ElementType::PinEntry: {
+                        auto *pin = static_cast<PinEntryElement *>(replacement);
+                        pin->setMasked(dlg.pinMasked());
+                        pin->setMaxLength(dlg.pinMaxLength());
+                        break;
+                    }
+                    case ElementType::KeypadButton: {
+                        auto *kpd = static_cast<KeypadButtonElement *>(replacement);
+                        kpd->setKeyValue(dlg.keypadValue());
+                        break;
+                    }
+                    case ElementType::ActionButton: {
+                        auto *act = static_cast<ActionButtonElement *>(replacement);
+                        act->setActionType(static_cast<ActionType>(dlg.actionTypeValue()));
+                        break;
+                    }
+                    default:
+                        break;
+                    }
+                }
+            }
+        }
+
         m_editor->deselectAll();
-        m_editor->selectElement(elem);  // refresh handles after resize
+        m_editor->selectElement(target);  // refresh handles after resize
     }
 }
 
