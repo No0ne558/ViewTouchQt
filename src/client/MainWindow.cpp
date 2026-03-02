@@ -553,31 +553,28 @@ void MainWindow::handleAction(const QString &pageName, ActionType action, const 
     auto *pg = m_engine->page(pageName);
     if (!pg) return;
 
-    PinEntryElement *pinEntry = nullptr;
-    for (UiElement *elem : pg->elements()) {
-        if (elem->elementType() == ElementType::PinEntry) {
-            pinEntry = static_cast<PinEntryElement *>(elem);
-            break;
+    // Login-page PIN validation / clearing (only applies to Login actions)
+    if (action == ActionType::Login) {
+        PinEntryElement *pinEntry = nullptr;
+        for (UiElement *elem : pg->elements()) {
+            if (elem->elementType() == ElementType::PinEntry) {
+                pinEntry = static_cast<PinEntryElement *>(elem);
+                break;
+            }
         }
-    }
 
-    // If there's a PinEntry on this page, require a non-empty PIN
-    if (pinEntry && pinEntry->pinText().isEmpty()) {
-        // Show feedback: find the status label
-        if (auto *statusElem = pg->element(QStringLiteral("login_status"))) {
-            statusElem->setLabel(QStringLiteral("Please enter your PIN first"));
+        if (pinEntry && pinEntry->pinText().isEmpty()) {
+            if (auto *statusElem = pg->element(QStringLiteral("login_status")))
+                statusElem->setLabel(QStringLiteral("Please enter your PIN first"));
+            return;
         }
-        return;
-    }
 
-    // Clear the status message
-    if (auto *statusElem = pg->element(QStringLiteral("login_status"))) {
-        statusElem->setLabel(QString());
-    }
+        if (auto *statusElem = pg->element(QStringLiteral("login_status")))
+            statusElem->setLabel(QString());
 
-    // Clear the PIN for next login
-    if (pinEntry)
-        pinEntry->clearPin();
+        if (pinEntry)
+            pinEntry->clearPin();
+    }
 
     // Navigate based on action type
     switch (action) {
