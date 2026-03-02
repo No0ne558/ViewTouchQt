@@ -4,6 +4,9 @@
 #include "MainWindow.h"
 
 #include <QResizeEvent>
+#include <QScreen>
+#include <QShowEvent>
+#include <QTimer>
 
 namespace vt {
 
@@ -29,7 +32,18 @@ MainWindow::MainWindow(PosClient *client, QWidget *parent)
     setupScene();
 
     // ── Fullscreen ──────────────────────────────────────────────────────
+    // Remove window decorations (title bar, borders) so the window fills
+    // the entire screen even on minimal WMs like XServer XSDL.
+    setWindowFlags(Qt::Window | Qt::FramelessWindowHint);
+
+    // Try the standard fullscreen request first (works on proper WMs).
     setWindowState(Qt::WindowFullScreen);
+
+    // Fallback: manually size to the screen geometry.  This guarantees
+    // fullscreen on XServer XSDL and other bare X11 servers.
+    if (QScreen *scr = screen()) {
+        setGeometry(scr->geometry());
+    }
 }
 
 void MainWindow::resizeEvent(QResizeEvent *event)
@@ -37,6 +51,26 @@ void MainWindow::resizeEvent(QResizeEvent *event)
     QMainWindow::resizeEvent(event);
     // Scale the 1920×1080 scene to fill the window, preserving aspect ratio.
     m_view->fitInView(m_scene->sceneRect(), Qt::KeepAspectRatio);
+}
+
+void MainWindow::showEvent(QShowEvent *event)
+{
+    QMainWindow::showEvent(event);
+    // Immediate fit for local displays.
+    m_view->fitInView(m_scene->sceneRect(), Qt::KeepAspectRatio);
+
+    // Deferred fit — remote X11 (XServer XSDL) may deliver the real
+    // geometry after the initial show.  Re-apply fullscreen geometry
+    // and fitInView to handle late screen-size reports.
+    auto applyFullscreen = [this]() {
+        if (QScreen *scr = screen()) {
+            setGeometry(scr->geometry());
+        }
+        m_view->fitInView(m_scene->sceneRect(), Qt::KeepAspectRatio);
+    };
+
+    QTimer::singleShot(100, this, applyFullscreen);
+    QTimer::singleShot(500, this, applyFullscreen);
 }
 
 void MainWindow::setupScene()

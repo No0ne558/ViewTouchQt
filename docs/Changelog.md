@@ -16,6 +16,8 @@ All notable changes to this project will be documented in this file.
 - Changed default port from 9100 to 12000 (avoids JetDirect printer conflicts)
 - Added `-platform xcb` to remote display docs for Wayland host sessions
 - Verified remote `vt_client` mirrors host UI as independent client session
+- Fixed fullscreen on XServer XSDL: frameless window + manual screen geometry fallback
+- Added `showEvent` with deferred `fitInView` for reliable scaling on remote X11 displays
 
 ## [0.1.0] - 2026-03-01
 - Project scaffold: initial commit
