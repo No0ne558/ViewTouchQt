@@ -8,12 +8,50 @@
 #include <QApplication>
 #include <QCommandLineOption>
 #include <QCommandLineParser>
+#include <QMouseEvent>
+#include <cmath>
+
+// ── Filter out mouse / touch events that carry NaN coordinates ──────────────
+// XServer XSDL on Android can produce invalid touch-to-mouse mappings via
+// XInput2 that arrive with NaN positions, causing Qt warnings and broken input.
+// This filter silently drops those events.
+class NanMouseFilter : public QObject {
+public:
+    using QObject::QObject;
+protected:
+    bool eventFilter(QObject *obj, QEvent *ev) override
+    {
+        switch (ev->type()) {
+        case QEvent::MouseButtonPress:
+        case QEvent::MouseButtonRelease:
+        case QEvent::MouseButtonDblClick:
+        case QEvent::MouseMove: {
+            auto *me = static_cast<QMouseEvent *>(ev);
+            const auto pos = me->position();
+            if (std::isnan(pos.x()) || std::isnan(pos.y()))
+                return true;   // swallow the bad event
+            break;
+        }
+        default:
+            break;
+        }
+        return QObject::eventFilter(obj, ev);
+    }
+};
 
 int main(int argc, char *argv[])
 {
+    // Disable XInput2 on xcb to avoid NaN touch coordinates from XServer XSDL.
+    // This env var must be set before QApplication construction.
+    qputenv("QT_XCB_NO_XI2", "1");
+
     QApplication app(argc, argv);
     QApplication::setApplicationName("vt_client");
     QApplication::setApplicationVersion("0.1.0");
+
+    // Safety net: filter any remaining NaN mouse events that slip through.
+    NanMouseFilter nanFilter;
+    app.installEventFilter(&nanFilter);
 
     // ── CLI options ─────────────────────────────────────────────────────────
     QCommandLineParser parser;
