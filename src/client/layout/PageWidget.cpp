@@ -211,7 +211,7 @@ UiElement *PageWidget::replaceElementType(const QString &id, ElementType newType
     }
     case ElementType::InfoLabel: {
         auto *info = addInfoLabel(id, x, y, w, h);
-        if (info) info->setLabel(label);
+        // Label is auto-generated (version info); don't overwrite it.
         created = info;
         break;
     }
