@@ -32,22 +32,24 @@ MainWindow::MainWindow(PosClient *client, QWidget *parent)
     // ── Layout engine ───────────────────────────────────────────────────
     m_engine = new LayoutEngine(m_scene, this);
 
-    // Forward any button click to the server.
+    // Forward any button click to the server and track which button was pressed.
     connect(m_engine, &LayoutEngine::buttonClicked, this,
-            [this](const QString & /*pageName*/, const QString & /*elementId*/) {
+            [this](const QString & /*pageName*/, const QString &elementId) {
+                m_lastPressedButtonId = elementId;
                 m_client->send(MsgType::ButtonPress);
             });
 
-    // Server ack → flash the button that was pressed.
-    // For now flash all buttons on active page; refine later with per-button ack.
+    // Server ack → flash only the button that was pressed.
     connect(m_client, &PosClient::buttonAckReceived, this, [this]() {
+        if (m_lastPressedButtonId.isEmpty())
+            return;
         if (auto *pg = m_engine->activePage()) {
-            for (auto *elem : pg->elements()) {
-                if (elem->elementType() == ElementType::Button) {
-                    static_cast<ButtonElement *>(elem)->flashAck();
-                }
+            auto *elem = pg->element(m_lastPressedButtonId);
+            if (elem && elem->elementType() == ElementType::Button) {
+                static_cast<ButtonElement *>(elem)->flashAck();
             }
         }
+        m_lastPressedButtonId.clear();
     });
 
     buildTestPage();

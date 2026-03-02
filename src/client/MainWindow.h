@@ -37,6 +37,7 @@ private:
     QGraphicsScene *m_scene  = nullptr;
     LayoutEngine   *m_engine = nullptr;
     PosClient      *m_client = nullptr;
+    QString         m_lastPressedButtonId;
 };
 
 } // namespace vt

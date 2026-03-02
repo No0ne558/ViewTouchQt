@@ -22,6 +22,16 @@ ButtonElement::ButtonElement(const QString &id,
     connect(&m_flashTimer, &QTimer::timeout, this, &ButtonElement::resetColor);
 }
 
+void ButtonElement::setBgColor(const QColor &c)
+{
+    UiElement::setBgColor(c);
+    // Keep display colour in sync unless mid-flash.
+    if (!m_flashTimer.isActive()) {
+        m_currentColor = c;
+        update();
+    }
+}
+
 void ButtonElement::paint(QPainter *painter,
                           const QStyleOptionGraphicsItem * /*option*/,
                           QWidget * /*widget*/)

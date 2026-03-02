@@ -26,6 +26,9 @@ public:
     void setActiveColor(const QColor &c) { m_activeColor = c; }
     const QColor &activeColor() const { return m_activeColor; }
 
+    /// Override to keep the current display colour in sync.
+    void setBgColor(const QColor &c) override;
+
 signals:
     void clicked(const QString &elementId);
 

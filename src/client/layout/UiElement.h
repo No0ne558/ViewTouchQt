@@ -59,7 +59,7 @@ public:
     void setLabel(const QString &text);
 
     const QColor &bgColor() const { return m_bgColor; }
-    void setBgColor(const QColor &c);
+    virtual void setBgColor(const QColor &c);
 
     const QColor &textColor() const { return m_textColor; }
     void setTextColor(const QColor &c);
