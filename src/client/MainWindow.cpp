@@ -106,13 +106,19 @@ MainWindow::MainWindow(PosClient *client, QWidget *parent)
     setWindowFlags(Qt::Window | Qt::FramelessWindowHint);
     setWindowState(Qt::WindowFullScreen);
 
-    // Use actual screen geometry when available, avoid hardcoding 1920×1080
-    // which would over-size the window on smaller remote displays.
+    // Determine the best available screen size.  QScreen may return a
+    // tiny or zero geometry on remote X servers like XServer XSDL, so
+    // fall back to the design resolution when the reported size is too
+    // small (< 640 px in either axis).
+    QRect screenGeo;
     if (QScreen *scr = screen()) {
-        QRect geo = scr->geometry();
-        if (geo.width() > 0 && geo.height() > 0)
-            setGeometry(geo);
+        screenGeo = scr->geometry();
     }
+    if (screenGeo.width() < 640 || screenGeo.height() < 480) {
+        screenGeo = QRect(0, 0, static_cast<int>(kDesignW), static_cast<int>(kDesignH));
+    }
+    setGeometry(screenGeo);
+    resize(screenGeo.size());
 
     // Defer the initial layout broadcast so that main.cpp has time to
     // wire layoutChanged → PosServer::setCurrentLayout before it fires.
@@ -136,11 +142,15 @@ void MainWindow::showEvent(QShowEvent *event)
 
     auto applyFullscreen = [this]() {
         showFullScreen();
-        if (QScreen *scr = screen()) {
-            QRect geo = scr->availableGeometry();
-            if (geo.width() > 0 && geo.height() > 0)
-                setGeometry(geo);
-        }
+
+        QRect geo;
+        if (QScreen *scr = screen())
+            geo = scr->availableGeometry();
+        if (geo.width() < 640 || geo.height() < 480)
+            geo = QRect(0, 0, static_cast<int>(kDesignW), static_cast<int>(kDesignH));
+
+        setGeometry(geo);
+        resize(geo.size());
         m_view->fitInView(m_scene->sceneRect(), Qt::KeepAspectRatio);
     };
 
