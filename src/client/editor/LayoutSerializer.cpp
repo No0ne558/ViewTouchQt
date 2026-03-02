@@ -80,6 +80,8 @@ QJsonObject LayoutSerializer::serialize(const LayoutEngine *engine)
         QJsonObject pageObj;
         pageObj[QStringLiteral("name")]       = pageName;
         pageObj[QStringLiteral("systemPage")] = pg->isSystemPage();
+        if (!pg->inheritFrom().isEmpty())
+            pageObj[QStringLiteral("inheritFrom")] = pg->inheritFrom();
         pageObj[QStringLiteral("elements")]   = elementsArr;
         pagesArr.append(pageObj);
     }
@@ -114,6 +116,9 @@ QJsonObject LayoutSerializer::serializeElement(const UiElement *elem)
     obj[QStringLiteral("fontSize")]     = elem->fontSize();
     obj[QStringLiteral("cornerRadius")] = elem->cornerRadius();
 
+    if (elem->isInheritable())
+        obj[QStringLiteral("inheritable")] = true;
+
     // Type-specific properties
     if (elem->elementType() == ElementType::Label) {
         auto *lbl = static_cast<const LabelElement *>(elem);
@@ -143,6 +148,8 @@ QJsonObject LayoutSerializer::serializeElement(const UiElement *elem)
         auto *act = static_cast<const ActionButtonElement *>(elem);
         obj[QStringLiteral("actionType")]  = static_cast<int>(act->actionType());
         obj[QStringLiteral("activeColor")] = act->activeColor().name(QColor::HexArgb);
+        if (act->actionType() == ActionType::Navigation && !act->targetPage().isEmpty())
+            obj[QStringLiteral("targetPage")] = act->targetPage();
     }
 
     return obj;
@@ -182,6 +189,10 @@ bool LayoutSerializer::deserialize(LayoutEngine *engine, const QJsonObject &root
         // Restore system page flag
         pg->setSystemPage(pageObj[QStringLiteral("systemPage")].toBool(false));
 
+        // Restore inherit-from
+        if (pageObj.contains(QStringLiteral("inheritFrom")))
+            pg->setInheritFrom(pageObj[QStringLiteral("inheritFrom")].toString());
+
         QJsonArray elemArr = pageObj[QStringLiteral("elements")].toArray();
         for (const QJsonValue &elemVal : elemArr) {
             deserializeElement(pg, elemVal.toObject());
@@ -214,6 +225,7 @@ bool LayoutSerializer::deserializeElement(PageWidget *page, const QJsonObject &o
     QColor textColor  = QColor(obj[QStringLiteral("textColor")].toString(QStringLiteral("#000000")));
     int fontSize      = obj[QStringLiteral("fontSize")].toInt(24);
     qreal cornerRadius = obj[QStringLiteral("cornerRadius")].toDouble(12);
+    bool inheritable   = obj[QStringLiteral("inheritable")].toBool(false);
 
     if (type == QStringLiteral("button")) {
         auto *btn = page->addButton(id, x, y, w, h, label);
@@ -222,6 +234,7 @@ bool LayoutSerializer::deserializeElement(PageWidget *page, const QJsonObject &o
         btn->setTextColor(textColor);
         btn->setFontSize(fontSize);
         btn->setCornerRadius(cornerRadius);
+        btn->setInheritable(inheritable);
         if (obj.contains(QStringLiteral("activeColor")))
             btn->setActiveColor(QColor(obj[QStringLiteral("activeColor")].toString()));
     } else if (type == QStringLiteral("label")) {
@@ -231,6 +244,7 @@ bool LayoutSerializer::deserializeElement(PageWidget *page, const QJsonObject &o
         lbl->setTextColor(textColor);
         lbl->setFontSize(fontSize);
         lbl->setCornerRadius(cornerRadius);
+        lbl->setInheritable(inheritable);
         if (obj.contains(QStringLiteral("alignment")))
             lbl->setAlignment(static_cast<Qt::Alignment>(obj[QStringLiteral("alignment")].toInt()));
         if (obj.contains(QStringLiteral("drawBackground")))
@@ -240,6 +254,7 @@ bool LayoutSerializer::deserializeElement(PageWidget *page, const QJsonObject &o
         if (!pnl) return false;
         pnl->setBgColor(bgColor);
         pnl->setCornerRadius(cornerRadius);
+        pnl->setInheritable(inheritable);
         if (obj.contains(QStringLiteral("borderColor")))
             pnl->setBorderColor(QColor(obj[QStringLiteral("borderColor")].toString()));
         if (obj.contains(QStringLiteral("borderWidth")))
@@ -251,6 +266,7 @@ bool LayoutSerializer::deserializeElement(PageWidget *page, const QJsonObject &o
         pin->setTextColor(textColor);
         pin->setFontSize(fontSize);
         pin->setCornerRadius(cornerRadius);
+        pin->setInheritable(inheritable);
         pin->setLabel(label);  // placeholder text
         if (obj.contains(QStringLiteral("masked")))
             pin->setMasked(obj[QStringLiteral("masked")].toBool(true));
@@ -263,6 +279,7 @@ bool LayoutSerializer::deserializeElement(PageWidget *page, const QJsonObject &o
         kpd->setTextColor(textColor);
         kpd->setFontSize(fontSize);
         kpd->setCornerRadius(cornerRadius);
+        kpd->setInheritable(inheritable);
         if (obj.contains(QStringLiteral("keyValue")))
             kpd->setKeyValue(obj[QStringLiteral("keyValue")].toString());
         if (obj.contains(QStringLiteral("activeColor")))
@@ -275,6 +292,9 @@ bool LayoutSerializer::deserializeElement(PageWidget *page, const QJsonObject &o
         act->setTextColor(textColor);
         act->setFontSize(fontSize);
         act->setCornerRadius(cornerRadius);
+        act->setInheritable(inheritable);
+        if (obj.contains(QStringLiteral("targetPage")))
+            act->setTargetPage(obj[QStringLiteral("targetPage")].toString());
         if (obj.contains(QStringLiteral("activeColor")))
             act->setActiveColor(QColor(obj[QStringLiteral("activeColor")].toString()));
     } else {

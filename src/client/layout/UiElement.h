@@ -73,6 +73,10 @@ public:
     int fontSize() const { return m_fontSize; }
     void setFontSize(int size);
 
+    /// Whether this element is inherited when another page inherits this page.
+    bool isInheritable() const { return m_inheritable; }
+    void setInheritable(bool on) { m_inheritable = on; }
+
 signals:
     void labelChanged();
     void elementMoved(qreal x, qreal y);
@@ -88,6 +92,7 @@ protected:
     QColor  m_textColor    = Qt::black;
     qreal   m_cornerRadius = 12.0;
     int     m_fontSize     = 24;
+    bool    m_inheritable  = false;
 };
 
 } // namespace vt

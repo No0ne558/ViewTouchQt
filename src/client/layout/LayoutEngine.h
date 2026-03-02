@@ -78,12 +78,18 @@ signals:
     void keypadPressed(const QString &pageName, const QString &value);
 
     /// Forwarded: an action button was triggered on a page.
-    void actionTriggered(const QString &pageName, vt::ActionType action);
+    void actionTriggered(const QString &pageName, vt::ActionType action, const QString &targetPage);
 
 private:
+    /// Attach inheritable elements from the parent page (if any).
+    void attachInheritedElements();
+    /// Detach any previously inherited elements from the scene.
+    void detachInheritedElements();
+
     QGraphicsScene *m_scene = nullptr;
     QHash<QString, PageWidget *> m_pages;
     PageWidget     *m_activePage = nullptr;
+    QList<UiElement *> m_inheritedItems;   // elements currently inherited into the scene
 };
 
 } // namespace vt

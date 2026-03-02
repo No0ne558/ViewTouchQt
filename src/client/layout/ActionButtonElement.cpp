@@ -56,7 +56,7 @@ void ActionButtonElement::mousePressEvent(QGraphicsSceneMouseEvent *event)
     m_currentColor = m_activeColor;
     update();
     m_flashTimer.start();
-    emit actionTriggered(m_action);
+    emit actionTriggered(m_action, m_targetPage);
 }
 
 void ActionButtonElement::resetColor()

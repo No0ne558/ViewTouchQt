@@ -34,6 +34,11 @@ public:
     bool isSystemPage() const { return m_systemPage; }
     void setSystemPage(bool on) { m_systemPage = on; }
 
+    /// The name of the page this page inherits elements from (empty = none).
+    /// Only elements marked as "inheritable" on the parent page are shown.
+    const QString &inheritFrom() const { return m_inheritFrom; }
+    void setInheritFrom(const QString &pageName) { m_inheritFrom = pageName; }
+
     // ── Element management ──────────────────────────────────────────────
 
     /// Create and add a button.  Returns a non-owning pointer.
@@ -91,13 +96,14 @@ signals:
     void keypadPressed(const QString &value);
 
     /// Forwarded from any ActionButtonElement on this page.
-    void actionTriggered(vt::ActionType action);
+    void actionTriggered(vt::ActionType action, const QString &targetPage);
 
 private:
     void registerElement(UiElement *elem);
 
     QString m_name;
     bool    m_systemPage = false;
+    QString m_inheritFrom;
     QHash<QString, UiElement *> m_elements;
     QGraphicsScene *m_currentScene = nullptr;
 };

@@ -11,10 +11,11 @@ namespace vt {
 
 /// The action a button performs when pressed.
 enum class ActionType {
-    Login,    // Navigate to the Tables page
-    DineIn,   // Navigate to the Order page
-    ToGo,     // Navigate to the Order page
-    Logout,   // Navigate back to the Login page
+    Login,      // Navigate to the Tables page
+    DineIn,     // Navigate to the Order page
+    ToGo,       // Navigate to the Order page
+    Logout,     // Navigate back to the Login page
+    Navigation, // Navigate to a specific page by name
 };
 
 /// A button that performs a POS navigation action.
@@ -35,6 +36,10 @@ public:
     ActionType actionType() const { return m_action; }
     void setActionType(ActionType action) { m_action = action; }
 
+    /// Target page name (only used when actionType == Navigation).
+    const QString &targetPage() const { return m_targetPage; }
+    void setTargetPage(const QString &page) { m_targetPage = page; }
+
     /// Colours for idle and active (flash) states.
     void setActiveColor(const QColor &c) { m_activeColor = c; }
     const QColor &activeColor() const { return m_activeColor; }
@@ -44,7 +49,7 @@ public:
 
 signals:
     /// Emitted when the button is pressed.
-    void actionTriggered(vt::ActionType action);
+    void actionTriggered(vt::ActionType action, const QString &targetPage);
 
 protected:
     void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
@@ -54,6 +59,7 @@ private slots:
 
 private:
     ActionType m_action = ActionType::Login;
+    QString m_targetPage;
     QColor  m_currentColor;
     QColor  m_activeColor = QColor(255, 220, 50);
     QTimer  m_flashTimer;

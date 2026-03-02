@@ -158,6 +158,7 @@ void MainWindow::toggleEditMode()
 void MainWindow::openPropertyDialog(UiElement *elem)
 {
     PropertyDialog dlg(elem, nullptr);  // nullptr parent → independent top-level window
+    dlg.setPageNames(m_engine->pageNames());
     if (dlg.exec() == QDialog::Accepted) {
         UiElement *target = elem;
 
@@ -186,6 +187,8 @@ void MainWindow::openPropertyDialog(UiElement *elem)
                     case ElementType::ActionButton: {
                         auto *act = static_cast<ActionButtonElement *>(replacement);
                         act->setActionType(static_cast<ActionType>(dlg.actionTypeValue()));
+                        if (act->actionType() == ActionType::Navigation)
+                            act->setTargetPage(dlg.targetPage());
                         break;
                     }
                     default:
@@ -489,7 +492,7 @@ void MainWindow::wirePageKeypad(const QString &pageName)
     }
 }
 
-void MainWindow::handleAction(const QString &pageName, ActionType action)
+void MainWindow::handleAction(const QString &pageName, ActionType action, const QString &targetPage)
 {
     // Find the PinEntry on the source page to validate
     auto *pg = m_engine->page(pageName);
@@ -532,6 +535,12 @@ void MainWindow::handleAction(const QString &pageName, ActionType action)
         break;
     case ActionType::Logout:
         m_engine->showPage(QStringLiteral("Login"));
+        break;
+    case ActionType::Navigation:
+        if (!targetPage.isEmpty() && m_engine->page(targetPage))
+            m_engine->showPage(targetPage);
+        else
+            qWarning() << "[action] Navigation target page not found:" << targetPage;
         break;
     }
 }

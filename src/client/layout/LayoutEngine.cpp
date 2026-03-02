@@ -39,8 +39,8 @@ PageWidget *LayoutEngine::createPage(const QString &name)
 
     // Forward action button triggers.
     connect(pg, &PageWidget::actionTriggered, this,
-            [this, name](ActionType action) {
-                emit actionTriggered(name, action);
+            [this, name](ActionType action, const QString &targetPage) {
+                emit actionTriggered(name, action, targetPage);
             });
 
     return pg;
@@ -95,8 +95,8 @@ bool LayoutEngine::renamePage(const QString &oldName, const QString &newName)
                 emit keypadPressed(newName, value);
             });
     connect(pg, &PageWidget::actionTriggered, this,
-            [this, newName](ActionType action) {
-                emit actionTriggered(newName, action);
+            [this, newName](ActionType action, const QString &targetPage) {
+                emit actionTriggered(newName, action, targetPage);
             });
 
     if (m_activePage == pg)
@@ -108,6 +108,7 @@ bool LayoutEngine::renamePage(const QString &oldName, const QString &newName)
 
 void LayoutEngine::clearAll()
 {
+    detachInheritedElements();
     if (m_activePage) {
         m_activePage->detachFromScene();
         m_activePage = nullptr;
@@ -159,6 +160,9 @@ bool LayoutEngine::showPage(const QString &name)
     if (pg == m_activePage)
         return true;  // already shown
 
+    // Detach inherited elements from previous page.
+    detachInheritedElements();
+
     // Detach the old page.
     if (m_activePage)
         m_activePage->detachFromScene();
@@ -166,6 +170,9 @@ bool LayoutEngine::showPage(const QString &name)
     // Attach the new page.
     m_activePage = pg;
     m_activePage->attachToScene(m_scene);
+
+    // Attach inherited elements (if this page inherits from another).
+    attachInheritedElements();
 
     qInfo() << "[layout] Switched to page:" << name;
     emit pageChanged(name);
@@ -175,6 +182,34 @@ bool LayoutEngine::showPage(const QString &name)
 QString LayoutEngine::activePageName() const
 {
     return m_activePage ? m_activePage->name() : QString();
+}
+
+// ── Inheritance ─────────────────────────────────────────────────────────────
+
+void LayoutEngine::attachInheritedElements()
+{
+    if (!m_activePage || m_activePage->inheritFrom().isEmpty())
+        return;
+
+    PageWidget *parent = m_pages.value(m_activePage->inheritFrom(), nullptr);
+    if (!parent)
+        return;
+
+    for (UiElement *elem : parent->elements()) {
+        if (elem->isInheritable() && elem->scene() != m_scene) {
+            m_scene->addItem(elem);
+            m_inheritedItems.append(elem);
+        }
+    }
+}
+
+void LayoutEngine::detachInheritedElements()
+{
+    for (UiElement *elem : m_inheritedItems) {
+        if (elem->scene() == m_scene)
+            m_scene->removeItem(elem);
+    }
+    m_inheritedItems.clear();
 }
 
 } // namespace vt

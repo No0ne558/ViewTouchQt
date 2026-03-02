@@ -76,6 +76,21 @@ All notable changes to this project will be documented in this file.
 - Added right-click to open Properties: right-clicking an element in edit mode opens its property dialog
 - Left-click drag and right-click property editing are now properly separated (no accidental drags on right-click)
 - Added `Logout` action type for ActionButton — navigates back to the Login page
+- Added `Navigation` action type for ActionButton — navigate to any arbitrary page by name
+  - Target page selectable via combo box in PropertyDialog when Navigation action is selected
+  - Signal chain updated to carry target page name (ActionButton → PageWidget → LayoutEngine → MainWindow)
+  - Full serialization support for targetPage in LayoutSerializer
+- Added page inheritance system
+  - `UiElement::inheritable` flag (default off) — marks elements as available for inheritance
+  - `PageWidget::inheritFrom` property — specifies which page to inherit elements from
+  - `LayoutEngine` attaches inheritable elements from parent page to scene on page switch
+  - Inheritable checkbox in PropertyDialog; inherit-from combo in PageManagerDialog
+  - Full serialization support for inheritable and inheritFrom in LayoutSerializer
+- Redesigned PageManagerDialog with split layout
+  - Left panel: sortable page list with element counts, active page indicator, system page badges
+  - Right panel: page properties (name, system page flag, inherit-from combo, apply button)
+  - Rename propagation: updates inheritFrom references when a page is renamed
+  - Delete cleanup: clears inheritFrom references when a page is deleted
 
 ## [0.1.0] - 2026-03-01
 - Project scaffold: initial commit

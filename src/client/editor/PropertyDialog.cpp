@@ -57,6 +57,11 @@ void PropertyDialog::setupUi()
             this, &PropertyDialog::onTypeChanged);
     idForm->addRow(QStringLiteral("Type:"), m_typeCombo);
 
+    m_inheritableChk = new QCheckBox(QStringLiteral("Inheritable"));
+    m_inheritableChk->setToolTip(QStringLiteral("If checked, this element can be inherited by other pages."));
+    m_inheritableChk->setChecked(m_element->isInheritable());
+    idForm->addRow(m_inheritableChk);
+
     mainLayout->addWidget(idGroup);
 
     // ── Text group ──────────────────────────────────────────────────────
@@ -181,6 +186,10 @@ void PropertyDialog::setupUi()
         m_actionTypeCombo->addItem(QStringLiteral("Dine-In (→ Order)"), static_cast<int>(ActionType::DineIn));
         m_actionTypeCombo->addItem(QStringLiteral("To-Go (→ Order)"), static_cast<int>(ActionType::ToGo));
         m_actionTypeCombo->addItem(QStringLiteral("Logout (→ Login)"), static_cast<int>(ActionType::Logout));
+        m_actionTypeCombo->addItem(QStringLiteral("Navigation (→ Page…)"), static_cast<int>(ActionType::Navigation));
+
+        m_navTargetCombo = new QComboBox;
+        m_navTargetCombo->setToolTip(QStringLiteral("Target page for Navigation action."));
 
         // If current element IS an ActionButton, load actual value
         if (m_element->elementType() == ElementType::ActionButton) {
@@ -188,7 +197,16 @@ void PropertyDialog::setupUi()
             m_actionTypeCombo->setCurrentIndex(static_cast<int>(act->actionType()));
         }
 
+        // Show/hide target combo based on selected action type
+        connect(m_actionTypeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+                this, [this]() {
+                    auto selAction = static_cast<ActionType>(m_actionTypeCombo->currentData().toInt());
+                    m_navTargetCombo->setVisible(selAction == ActionType::Navigation);
+                    adjustSize();
+                });
+
         actForm->addRow(QStringLiteral("Action:"), m_actionTypeCombo);
+        actForm->addRow(QStringLiteral("Target page:"), m_navTargetCombo);
         mainLayout->addWidget(m_actGroup);
     }
 
@@ -231,6 +249,7 @@ void PropertyDialog::applyChanges()
     m_element->setBgColor(m_bgColor);
     m_element->setTextColor(m_textColor);
     m_element->setCornerRadius(m_radiusBox->value());
+    m_element->setInheritable(m_inheritableChk->isChecked());
 
     // ── Type-specific properties (only apply if type NOT changing) ───────
     if (!typeChanged()) {
@@ -250,6 +269,8 @@ void PropertyDialog::applyChanges()
             auto *act = static_cast<ActionButtonElement *>(m_element);
             if (m_actionTypeCombo)
                 act->setActionType(static_cast<ActionType>(m_actionTypeCombo->currentData().toInt()));
+            if (m_navTargetCombo && act->actionType() == ActionType::Navigation)
+                act->setTargetPage(m_navTargetCombo->currentText());
         }
     }
 
@@ -264,6 +285,12 @@ void PropertyDialog::onTypeChanged(int index)
     m_pinGroup->setVisible(selectedType == ElementType::PinEntry);
     m_kpdGroup->setVisible(selectedType == ElementType::KeypadButton);
     m_actGroup->setVisible(selectedType == ElementType::ActionButton);
+
+    // Also toggle nav target within the action group
+    if (m_navTargetCombo && selectedType == ElementType::ActionButton) {
+        auto selAction = static_cast<ActionType>(m_actionTypeCombo->currentData().toInt());
+        m_navTargetCombo->setVisible(selAction == ActionType::Navigation);
+    }
 
     // Resize the dialog to fit the visible content
     adjustSize();
@@ -287,6 +314,37 @@ QString PropertyDialog::keypadValue() const
 int PropertyDialog::actionTypeValue() const
 {
     return m_actionTypeCombo ? m_actionTypeCombo->currentData().toInt() : 0;
+}
+
+QString PropertyDialog::targetPage() const
+{
+    return m_navTargetCombo ? m_navTargetCombo->currentText() : QString();
+}
+
+bool PropertyDialog::inheritable() const
+{
+    return m_inheritableChk ? m_inheritableChk->isChecked() : false;
+}
+
+void PropertyDialog::setPageNames(const QStringList &names)
+{
+    if (!m_navTargetCombo) return;
+    m_navTargetCombo->clear();
+    for (const QString &n : names)
+        m_navTargetCombo->addItem(n);
+
+    // If the element is already a Navigation action button, pre-select target
+    if (m_element->elementType() == ElementType::ActionButton) {
+        auto *act = static_cast<ActionButtonElement *>(m_element);
+        if (act->actionType() == ActionType::Navigation && !act->targetPage().isEmpty()) {
+            int idx = m_navTargetCombo->findText(act->targetPage());
+            if (idx >= 0) m_navTargetCombo->setCurrentIndex(idx);
+        }
+    }
+
+    // Ensure visibility state
+    auto selAction = static_cast<ActionType>(m_actionTypeCombo->currentData().toInt());
+    m_navTargetCombo->setVisible(selAction == ActionType::Navigation);
 }
 
 } // namespace vt

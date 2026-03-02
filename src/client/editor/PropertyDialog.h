@@ -23,6 +23,9 @@ class PropertyDialog : public QDialog {
 public:
     explicit PropertyDialog(UiElement *element, QWidget *parent = nullptr);
 
+    /// Provide a list of page names for the Navigation target combo.
+    void setPageNames(const QStringList &names);
+
     /// Whether the user changed the element type.
     bool typeChanged() const { return m_originalType != m_newType; }
 
@@ -34,6 +37,8 @@ public:
     int     pinMaxLength() const;
     QString keypadValue() const;
     int     actionTypeValue() const;
+    QString targetPage() const;
+    bool    inheritable() const;
 
 private slots:
     void chooseColor(QPushButton *btn, QColor &target);
@@ -74,8 +79,12 @@ private:
     // Type-specific widgets
     QLineEdit *m_keyValueEdit    = nullptr;   // KeypadButton
     QComboBox *m_actionTypeCombo = nullptr;   // ActionButton
+    QComboBox *m_navTargetCombo  = nullptr;   // ActionButton (Navigation target)
     QCheckBox *m_maskedCheck     = nullptr;   // PinEntry
     QSpinBox  *m_maxLengthBox    = nullptr;   // PinEntry
+
+    // Common flag
+    QCheckBox *m_inheritableChk  = nullptr;
 };
 
 } // namespace vt
