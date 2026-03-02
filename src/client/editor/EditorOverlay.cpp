@@ -409,6 +409,27 @@ bool EditorOverlay::eventFilter(QObject *watched, QEvent *event)
             updateHandles();
             return true;
         }
+
+        // W / H resize the selected element (Shift = shrink)
+        constexpr qreal kResizeStep = 10.0;
+        constexpr qreal kMinSize    = 40.0;
+        bool shrink = (ke->modifiers() & Qt::ShiftModifier);
+        if (ke->key() == Qt::Key_W) {
+            qreal newW = m_selected->elementW() + (shrink ? -kResizeStep : kResizeStep);
+            if (newW >= kMinSize) {
+                m_selected->resizeTo(newW, m_selected->elementH());
+                updateHandles();
+            }
+            return true;
+        }
+        if (ke->key() == Qt::Key_H) {
+            qreal newH = m_selected->elementH() + (shrink ? -kResizeStep : kResizeStep);
+            if (newH >= kMinSize) {
+                m_selected->resizeTo(m_selected->elementW(), newH);
+                updateHandles();
+            }
+            return true;
+        }
     }
 
     return false;
