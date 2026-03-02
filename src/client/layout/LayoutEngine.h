@@ -37,6 +37,9 @@ public:
     /// the active page; switch away first.
     bool removePage(const QString &name);
 
+    /// Rename a page.  Returns true on success.
+    bool renamePage(const QString &oldName, const QString &newName);
+
     /// Remove all pages (detaches active page first).
     void clearAll();
 

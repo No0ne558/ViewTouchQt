@@ -52,6 +52,38 @@ bool LayoutEngine::removePage(const QString &name)
     return true;
 }
 
+bool LayoutEngine::renamePage(const QString &oldName, const QString &newName)
+{
+    if (oldName == newName)
+        return true;
+
+    if (!m_pages.contains(oldName)) {
+        qWarning() << "[layout] Page not found for rename:" << oldName;
+        return false;
+    }
+    if (m_pages.contains(newName)) {
+        qWarning() << "[layout] Target name already exists:" << newName;
+        return false;
+    }
+
+    PageWidget *pg = m_pages.take(oldName);
+    pg->setName(newName);
+    m_pages.insert(newName, pg);
+
+    // Re-connect button click forwarding with the new name
+    disconnect(pg, &PageWidget::buttonClicked, this, nullptr);
+    connect(pg, &PageWidget::buttonClicked, this,
+            [this, newName](const QString &elementId) {
+                emit buttonClicked(newName, elementId);
+            });
+
+    if (m_activePage == pg)
+        emit pageChanged(newName);
+
+    qInfo() << "[layout] Renamed page" << oldName << "->" << newName;
+    return true;
+}
+
 void LayoutEngine::clearAll()
 {
     if (m_activePage) {

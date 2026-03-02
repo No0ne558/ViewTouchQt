@@ -6,6 +6,7 @@
 
 #include <QLabel>
 #include <QPushButton>
+#include <QTimer>
 #include <QVBoxLayout>
 
 namespace vt {
@@ -117,8 +118,10 @@ void PageTabBar::buildWidget()
     auto *manageBtn = new QPushButton(QStringLiteral("Manage Pages..."));
     manageBtn->setObjectName(QStringLiteral("manageBtn"));
     manageBtn->setCursor(Qt::PointingHandCursor);
+    // Defer emission so the button finishes its click handling before
+    // the slot chain can destroy the widget tree (prevents crash).
     connect(manageBtn, &QPushButton::clicked, this, [this]() {
-        emit manageRequested();
+        QTimer::singleShot(0, this, [this]() { emit manageRequested(); });
     });
     layout->addWidget(manageBtn);
 

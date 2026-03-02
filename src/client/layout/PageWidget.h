@@ -24,6 +24,7 @@ public:
     ~PageWidget() override;
 
     const QString &name() const { return m_name; }
+    void setName(const QString &name) { m_name = name; }
 
     // ── Element management ──────────────────────────────────────────────
 

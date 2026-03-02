@@ -132,20 +132,17 @@ void PageManagerDialog::onRenamePage()
         return;
     }
 
-    // Rename = create new page, copy elements, delete old.
-    // For now, we do a lightweight approach: the LayoutEngine doesn't have
-    // a rename API, so we just inform the user to use a new page.
-    // TODO: implement proper rename in LayoutEngine.
-    PageWidget *oldPage = m_engine->page(oldName);
-    if (!oldPage) return;
+    if (!m_engine->renamePage(oldName, newName)) {
+        QMessageBox::warning(this, QStringLiteral("Rename Failed"),
+            QStringLiteral("Could not rename the page."));
+        return;
+    }
 
-    // Create new page and move elements by re-serializing
-    // We'll use a simple trick: just change the internal name.
-    // Since PageWidget stores its name, we need a setter.
-    // For v1, let's just not support rename and tell the user.
-    QMessageBox::information(this, QStringLiteral("Rename"),
-        QStringLiteral("Page rename is not yet supported.\n"
-                        "Create a new page and re-create your elements."));
+    // If the renamed page was selected as the go-to target, update it.
+    if (m_selectedPage == oldName)
+        m_selectedPage = newName;
+
+    refreshList();
 }
 
 void PageManagerDialog::onDeletePage()
