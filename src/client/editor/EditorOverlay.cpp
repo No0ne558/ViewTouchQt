@@ -207,38 +207,74 @@ void EditorOverlay::setEditMode(bool on)
 
 void EditorOverlay::selectElement(UiElement *elem)
 {
-    if (m_selected == elem)
+    if (m_selection.size() == 1 && m_selection.first() == elem)
         return;
 
     deselectAll();
-    m_selected = elem;
 
     if (!elem)
         return;
 
-    // Create selection rectangle
-    createSelectionRect();
-    createResizeHandles();
-    updateHandles();
+    m_selection.append(elem);
+    m_selected = elem;
 
+    addSelectionDecoration(elem);
     emit selectionChanged(elem);
+}
+
+void EditorOverlay::toggleElementInSelection(UiElement *elem)
+{
+    if (!elem) return;
+
+    if (m_selection.contains(elem)) {
+        // Remove from selection
+        removeSelectionDecoration(elem);
+        m_selection.removeOne(elem);
+    } else {
+        // Add to selection
+        m_selection.append(elem);
+        addSelectionDecoration(elem);
+    }
+
+    m_selected = m_selection.isEmpty() ? nullptr : m_selection.first();
+
+    // Resize handles only shown for single selection
+    if (m_selection.size() != 1) {
+        // Strip resize handles from all decorated elements
+        for (auto it = m_decor.begin(); it != m_decor.end(); ++it) {
+            qDeleteAll(it->handles);
+            it->handles.clear();
+        }
+    } else if (m_selection.size() == 1) {
+        // Re-add handles for the single selected element
+        removeSelectionDecoration(m_selection.first());
+        addSelectionDecoration(m_selection.first());
+    }
+
+    emit selectionChanged(m_selected);
 }
 
 void EditorOverlay::deselectAll()
 {
     hideHandles();
+    m_selection.clear();
     m_selected = nullptr;
     emit selectionChanged(nullptr);
 }
 
 void EditorOverlay::deleteSelected()
 {
-    if (!m_selected || !m_engine->activePage())
+    if (m_selection.isEmpty() || !m_engine->activePage())
         return;
 
-    QString id = m_selected->elementId();
+    QStringList ids;
+    for (auto *elem : m_selection)
+        ids.append(elem->elementId());
+
     deselectAll();
-    m_engine->activePage()->removeElement(id);
+
+    for (const QString &id : ids)
+        m_engine->activePage()->removeElement(id);
 }
 
 // ── Add element ─────────────────────────────────────────────────────────────
@@ -375,38 +411,80 @@ bool EditorOverlay::eventFilter(QObject *watched, QEvent *event)
         }
 
         if (elem) {
-            selectElement(elem);
-
             if (me->button() == Qt::RightButton) {
-                // Right-click: open property editor immediately
+                // Right-click: select and open property editor immediately
+                if (!m_selection.contains(elem))
+                    selectElement(elem);
                 emit editPropertiesRequested(elem);
             } else if (me->button() == Qt::LeftButton) {
-                // Left-click: start drag
-                m_dragging = true;
-                m_dragStartScene = me->scenePos();
-                m_dragStartPos = elem->pos();
+                bool ctrl = (me->modifiers() & Qt::ControlModifier);
+
+                if (ctrl) {
+                    // Ctrl+click: toggle in multi-selection
+                    toggleElementInSelection(elem);
+                } else {
+                    // Plain click: if element is already in a multi-selection,
+                    // start drag of the whole group; otherwise single-select.
+                    if (!m_selection.contains(elem))
+                        selectElement(elem);
+                }
+
+                // Start drag for all selected elements
+                if (!m_selection.isEmpty()) {
+                    m_dragging = true;
+                    m_dragStartScene = me->scenePos();
+                    m_dragStartPositions.clear();
+                    for (auto *sel : m_selection)
+                        m_dragStartPositions.insert(sel, sel->pos());
+                    m_dragStartPos = m_selection.first()->pos();
+                }
             }
             return true;  // consume event — don't trigger button clicks
         } else {
-            deselectAll();
+            // Clicked on empty space
+            if (me->button() == Qt::LeftButton) {
+                bool ctrl = (me->modifiers() & Qt::ControlModifier);
+                if (!ctrl)
+                    deselectAll();
+                // Start rubber-band selection
+                beginRubberBand(me->scenePos());
+            } else {
+                deselectAll();
+            }
             return true;
         }
     }
 
-    if (event->type() == QEvent::GraphicsSceneMouseMove && m_dragging && m_selected) {
+    if (event->type() == QEvent::GraphicsSceneMouseMove) {
         auto *me = static_cast<QGraphicsSceneMouseEvent *>(event);
-        QPointF delta = me->scenePos() - m_dragStartScene;
-        QPointF newPos = snapToGrid(m_dragStartPos + delta);
-        m_selected->setPos(newPos);
-        updateHandles();
-        return true;
+
+        if (m_rubberBanding) {
+            updateRubberBand(me->scenePos());
+            return true;
+        }
+
+        if (m_dragging && !m_selection.isEmpty()) {
+            QPointF delta = me->scenePos() - m_dragStartScene;
+            for (auto *sel : m_selection) {
+                QPointF startPos = m_dragStartPositions.value(sel);
+                sel->setPos(snapToGrid(startPos + delta));
+            }
+            updateHandles();
+            return true;
+        }
     }
 
-    if (event->type() == QEvent::GraphicsSceneMouseRelease && m_dragging) {
-        m_dragging = false;
-        if (m_selected)
+    if (event->type() == QEvent::GraphicsSceneMouseRelease) {
+        if (m_rubberBanding) {
+            endRubberBand();
+            return true;
+        }
+        if (m_dragging) {
+            m_dragging = false;
+            m_dragStartPositions.clear();
             updateHandles();
-        return true;
+            return true;
+        }
     }
 
     // Double-click opens property editor
@@ -422,8 +500,8 @@ bool EditorOverlay::eventFilter(QObject *watched, QEvent *event)
         }
     }
 
-    // Arrow keys move the selected element (Shift = 1px fine move)
-    if (event->type() == QEvent::KeyPress && m_selected) {
+    // Arrow keys move all selected elements (Shift = 1px fine move)
+    if (event->type() == QEvent::KeyPress && !m_selection.isEmpty()) {
         auto *ke = static_cast<QKeyEvent *>(event);
         qreal step = (ke->modifiers() & Qt::ShiftModifier) ? 1.0 : 10.0;
         QPointF delta;
@@ -435,93 +513,198 @@ bool EditorOverlay::eventFilter(QObject *watched, QEvent *event)
         default: break;
         }
         if (!delta.isNull()) {
-            m_selected->setPos(m_selected->pos() + delta);
+            for (auto *sel : m_selection)
+                sel->setPos(sel->pos() + delta);
             updateHandles();
             return true;
         }
 
-        // W / H resize the selected element (Shift = shrink)
-        constexpr qreal kResizeStep = 10.0;
-        constexpr qreal kMinSize    = 40.0;
-        bool shrink = (ke->modifiers() & Qt::ShiftModifier);
-        if (ke->key() == Qt::Key_W) {
-            qreal newW = m_selected->elementW() + (shrink ? -kResizeStep : kResizeStep);
-            if (newW >= kMinSize) {
-                m_selected->resizeTo(newW, m_selected->elementH());
-                updateHandles();
+        // W / H resize only works for single selection
+        if (m_selection.size() == 1) {
+            auto *sel = m_selection.first();
+            constexpr qreal kResizeStep = 10.0;
+            constexpr qreal kMinSize    = 40.0;
+            bool shrink = (ke->modifiers() & Qt::ShiftModifier);
+            if (ke->key() == Qt::Key_W) {
+                qreal newW = sel->elementW() + (shrink ? -kResizeStep : kResizeStep);
+                if (newW >= kMinSize) {
+                    sel->resizeTo(newW, sel->elementH());
+                    updateHandles();
+                }
+                return true;
             }
-            return true;
-        }
-        if (ke->key() == Qt::Key_H) {
-            qreal newH = m_selected->elementH() + (shrink ? -kResizeStep : kResizeStep);
-            if (newH >= kMinSize) {
-                m_selected->resizeTo(m_selected->elementW(), newH);
-                updateHandles();
+            if (ke->key() == Qt::Key_H) {
+                qreal newH = sel->elementH() + (shrink ? -kResizeStep : kResizeStep);
+                if (newH >= kMinSize) {
+                    sel->resizeTo(sel->elementW(), newH);
+                    updateHandles();
+                }
+                return true;
             }
-            return true;
         }
     }
 
     return false;
 }
 
-// ── Handles ─────────────────────────────────────────────────────────────────
+// ── Handles / Decoration ────────────────────────────────────────────────────
+
+void EditorOverlay::addSelectionDecoration(UiElement *elem)
+{
+    if (!elem) return;
+
+    // Remove existing decoration if any
+    removeSelectionDecoration(elem);
+
+    ElemDecor decor;
+
+    // Selection rectangle (dashed outline)
+    decor.selRect = new QGraphicsRectItem(elem);
+    decor.selRect->setPen(QPen(QColor(0, 120, 255), 2, Qt::DashLine));
+    decor.selRect->setBrush(Qt::NoBrush);
+    decor.selRect->setZValue(9999);
+
+    // Resize handles only for single selection
+    if (m_selection.size() == 1 && m_selection.first() == elem) {
+        const ResizeHandle::Position positions[] = {
+            ResizeHandle::TopLeft, ResizeHandle::Top, ResizeHandle::TopRight,
+            ResizeHandle::Right, ResizeHandle::BottomRight, ResizeHandle::Bottom,
+            ResizeHandle::BottomLeft, ResizeHandle::Left
+        };
+        for (auto pos : positions) {
+            auto *h = new ResizeHandle(pos, this, elem);
+            decor.handles.append(h);
+        }
+    }
+
+    m_decor.insert(elem, decor);
+
+    // Position decorations
+    QRectF r = elem->boundingRect();
+    decor.selRect->setRect(r.adjusted(-3, -3, 3, 3));
+    for (auto *h : decor.handles)
+        h->reposition(r);
+}
+
+void EditorOverlay::removeSelectionDecoration(UiElement *elem)
+{
+    if (!elem) return;
+
+    auto it = m_decor.find(elem);
+    if (it == m_decor.end()) return;
+
+    delete it->selRect;
+    qDeleteAll(it->handles);
+    m_decor.erase(it);
+}
 
 void EditorOverlay::createSelectionRect()
 {
-    if (m_selectionRect) {
-        delete m_selectionRect;
-        m_selectionRect = nullptr;
-    }
-
-    if (!m_selected) return;
-
-    m_selectionRect = new QGraphicsRectItem(m_selected);
-    m_selectionRect->setPen(QPen(QColor(0, 120, 255), 2, Qt::DashLine));
-    m_selectionRect->setBrush(Qt::NoBrush);
-    m_selectionRect->setZValue(9999);
+    // No-op: selection rects are now per-element in addSelectionDecoration
 }
 
 void EditorOverlay::createResizeHandles()
 {
-    qDeleteAll(m_handles);
-    m_handles.clear();
-
-    if (!m_selected) return;
-
-    const ResizeHandle::Position positions[] = {
-        ResizeHandle::TopLeft, ResizeHandle::Top, ResizeHandle::TopRight,
-        ResizeHandle::Right, ResizeHandle::BottomRight, ResizeHandle::Bottom,
-        ResizeHandle::BottomLeft, ResizeHandle::Left
-    };
-
-    for (auto pos : positions) {
-        auto *h = new ResizeHandle(pos, this, m_selected);
-        m_handles.append(h);
-    }
+    // No-op: handles are now per-element in addSelectionDecoration
 }
 
 void EditorOverlay::updateHandles()
 {
-    if (!m_selected) return;
-
-    QRectF r = m_selected->boundingRect();
-
-    if (m_selectionRect)
-        m_selectionRect->setRect(r.adjusted(-3, -3, 3, 3));
-
-    for (auto *h : m_handles)
-        h->reposition(r);
+    for (auto it = m_decor.begin(); it != m_decor.end(); ++it) {
+        UiElement *elem = it.key();
+        QRectF r = elem->boundingRect();
+        if (it->selRect)
+            it->selRect->setRect(r.adjusted(-3, -3, 3, 3));
+        for (auto *h : it->handles)
+            h->reposition(r);
+    }
 }
 
 void EditorOverlay::hideHandles()
 {
-    if (m_selectionRect) {
-        delete m_selectionRect;
-        m_selectionRect = nullptr;
+    for (auto it = m_decor.begin(); it != m_decor.end(); ++it) {
+        delete it->selRect;
+        qDeleteAll(it->handles);
     }
-    qDeleteAll(m_handles);
-    m_handles.clear();
+    m_decor.clear();
+
+    // Also clean up any rubber-band
+    cancelRubberBand();
+}
+
+// ── Rubber-band selection ───────────────────────────────────────────────────
+
+void EditorOverlay::beginRubberBand(const QPointF &scenePos)
+{
+    m_rubberBanding = true;
+    m_rubberBandOrigin = scenePos;
+
+    if (!m_rubberBandRect) {
+        m_rubberBandRect = new QGraphicsRectItem;
+        m_rubberBandRect->setPen(QPen(QColor(0, 120, 255), 1, Qt::DashLine));
+        m_rubberBandRect->setBrush(QColor(0, 120, 255, 40));
+        m_rubberBandRect->setZValue(19999);
+        m_scene->addItem(m_rubberBandRect);
+    }
+    m_rubberBandRect->setRect(QRectF(scenePos, scenePos).normalized());
+    m_rubberBandRect->setVisible(true);
+}
+
+void EditorOverlay::updateRubberBand(const QPointF &scenePos)
+{
+    if (!m_rubberBandRect) return;
+    QRectF r(m_rubberBandOrigin, scenePos);
+    m_rubberBandRect->setRect(r.normalized());
+}
+
+void EditorOverlay::endRubberBand()
+{
+    if (!m_rubberBandRect) {
+        m_rubberBanding = false;
+        return;
+    }
+
+    QRectF selArea = m_rubberBandRect->rect();
+    cancelRubberBand();
+
+    // Only select if the drag area is meaningful (at least a few pixels)
+    if (selArea.width() < 5 && selArea.height() < 5)
+        return;
+
+    // Find all UiElements whose bounding box intersects the rubber band
+    auto *page = m_engine->activePage();
+    if (!page) return;
+
+    for (auto *elem : page->elements()) {
+        QRectF elemRect(elem->pos(), QSizeF(elem->elementW(), elem->elementH()));
+        if (selArea.intersects(elemRect)) {
+            if (!m_selection.contains(elem)) {
+                m_selection.append(elem);
+                addSelectionDecoration(elem);
+            }
+        }
+    }
+
+    // Strip resize handles if multi-selected
+    if (m_selection.size() > 1) {
+        for (auto it = m_decor.begin(); it != m_decor.end(); ++it) {
+            qDeleteAll(it->handles);
+            it->handles.clear();
+        }
+    }
+
+    m_selected = m_selection.isEmpty() ? nullptr : m_selection.first();
+    emit selectionChanged(m_selected);
+}
+
+void EditorOverlay::cancelRubberBand()
+{
+    m_rubberBanding = false;
+    if (m_rubberBandRect) {
+        m_scene->removeItem(m_rubberBandRect);
+        delete m_rubberBandRect;
+        m_rubberBandRect = nullptr;
+    }
 }
 
 // ═════════════════════════════════════════════════════════════════════════════

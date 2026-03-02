@@ -79,16 +79,22 @@ public:
     void setEditMode(bool on);
     bool isEditMode() const { return m_editMode; }
 
-    /// Currently selected element (nullptr if none).
-    UiElement *selectedElement() const { return m_selected; }
+    /// Currently selected element (first in selection, nullptr if none).
+    UiElement *selectedElement() const { return m_selection.isEmpty() ? nullptr : m_selection.first(); }
 
-    /// Select an element (shows handles, outline).
+    /// All currently selected elements.
+    const QList<UiElement *> &selectedElements() const { return m_selection; }
+
+    /// Select a single element (clears previous selection).
     void selectElement(UiElement *elem);
 
-    /// Deselect current element.
+    /// Add an element to the selection (Ctrl+click behaviour).
+    void toggleElementInSelection(UiElement *elem);
+
+    /// Deselect all elements.
     void deselectAll();
 
-    /// Remove the currently selected element.
+    /// Remove all currently selected elements.
     void deleteSelected();
 
     /// Add a new element of the given type at the center of the scene.
@@ -126,22 +132,51 @@ private:
     void createSelectionRect();
     void createResizeHandles();
 
+    /// Build decoration (selection rect + optional resize handles) for a single element.
+    void addSelectionDecoration(UiElement *elem);
+    /// Remove decorations for a specific element.
+    void removeSelectionDecoration(UiElement *elem);
+
+    /// Start rubber-band selection at the given scene position.
+    void beginRubberBand(const QPointF &scenePos);
+    /// Update rubber-band rectangle during drag.
+    void updateRubberBand(const QPointF &scenePos);
+    /// Finish rubber-band selection, selecting all elements inside the rect.
+    void endRubberBand();
+    /// Cancel rubber-band without selecting.
+    void cancelRubberBand();
+
 private:
 
     LayoutEngine   *m_engine     = nullptr;
     QGraphicsScene *m_scene      = nullptr;
     bool            m_editMode   = false;
 
-    UiElement *m_selected = nullptr;
+    // ── Multi-selection ─────────────────────────────────────────────────
+    QList<UiElement *> m_selection;
 
-    // Selection decoration
-    QGraphicsRectItem *m_selectionRect = nullptr;
-    QList<ResizeHandle *> m_handles;
+    // Per-element decorations (selection rect + handles when single-selected).
+    struct ElemDecor {
+        QGraphicsRectItem *selRect = nullptr;
+        QList<ResizeHandle *> handles;
+    };
+    QHash<UiElement *, ElemDecor> m_decor;
 
-    // Dragging state
+    // Legacy single-selection helpers (delegate to m_selection / m_decor)
+    UiElement *m_selected = nullptr;  // first of m_selection, kept for compat
+    QGraphicsRectItem *m_selectionRect = nullptr;  // unused — decoration in m_decor
+    QList<ResizeHandle *> m_handles;               // unused — decoration in m_decor
+
+    // ── Dragging state ──────────────────────────────────────────────────
     bool    m_dragging       = false;
     QPointF m_dragStartScene;
-    QPointF m_dragStartPos;
+    QPointF m_dragStartPos;                        // first element's start pos
+    QHash<UiElement *, QPointF> m_dragStartPositions;  // all selected elements
+
+    // ── Rubber-band selection ───────────────────────────────────────────
+    bool    m_rubberBanding       = false;
+    QPointF m_rubberBandOrigin;
+    QGraphicsRectItem *m_rubberBandRect = nullptr;
 
     // Toolbar (movable container: invisible rect → drag handle + toolbar proxy)
     QGraphicsRectItem    *m_toolbarGroup = nullptr;

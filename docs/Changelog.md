@@ -75,6 +75,13 @@ All notable changes to this project will be documented in this file.
 - Removed `+ Label` and `+ Panel` buttons from editor toolbar (use type change in Properties instead)
 - Added right-click to open Properties: right-clicking an element in edit mode opens its property dialog
 - Left-click drag and right-click property editing are now properly separated (no accidental drags on right-click)
+- Added multi-element selection in the visual editor
+  - Ctrl+click to toggle individual elements in/out of the selection
+  - Drag on empty space to draw a rubber-band rectangle; all elements inside are selected
+  - Move all selected elements together by dragging or with arrow keys
+  - Delete key removes all selected elements at once
+  - Resize handles shown only for single-element selection
+  - Ctrl+click on empty space preserves existing selection while starting rubber-band
 - Added `Logout` action type for ActionButton — navigates back to the Login page
 - Added `Navigation` action type for ActionButton — navigate to any arbitrary page by name
   - Target page selectable via combo box in PropertyDialog when Navigation action is selected
