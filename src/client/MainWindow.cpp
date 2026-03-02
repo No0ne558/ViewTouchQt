@@ -102,25 +102,25 @@ MainWindow::MainWindow(PosClient *client, QWidget *parent)
     // Ensure system pages always exist (Login, Tables, Order).
     ensureSystemPages();
 
-    // Emit initial layout so the host can push it to the server cache.
-    {
-        QJsonObject root = LayoutSerializer::serialize(m_engine);
-        QJsonDocument doc(root);
-        emit layoutChanged(doc.toJson(QJsonDocument::Compact));
-    }
-
     // ── Fullscreen ──────────────────────────────────────────────────────
     setWindowFlags(Qt::Window | Qt::FramelessWindowHint);
     setWindowState(Qt::WindowFullScreen);
 
+    // Use actual screen geometry when available, avoid hardcoding 1920×1080
+    // which would over-size the window on smaller remote displays.
     if (QScreen *scr = screen()) {
-        setGeometry(scr->geometry());
+        QRect geo = scr->geometry();
+        if (geo.width() > 0 && geo.height() > 0)
+            setGeometry(geo);
     }
 
-    // Force an explicit resize to 1920×1080 as a fallback for remote X
-    // servers (e.g. XServer XSDL) where QScreen geometry may not be
-    // reported correctly at initial setup time.
-    resize(1920, 1080);
+    // Defer the initial layout broadcast so that main.cpp has time to
+    // wire layoutChanged → PosServer::setCurrentLayout before it fires.
+    QTimer::singleShot(0, this, [this]() {
+        QJsonObject root = LayoutSerializer::serialize(m_engine);
+        QJsonDocument doc(root);
+        emit layoutChanged(doc.toJson(QJsonDocument::Compact));
+    });
 }
 
 void MainWindow::resizeEvent(QResizeEvent *event)
@@ -135,16 +135,12 @@ void MainWindow::showEvent(QShowEvent *event)
     m_view->fitInView(m_scene->sceneRect(), Qt::KeepAspectRatio);
 
     auto applyFullscreen = [this]() {
+        showFullScreen();
         if (QScreen *scr = screen()) {
-            QRect geo = scr->geometry();
+            QRect geo = scr->availableGeometry();
             if (geo.width() > 0 && geo.height() > 0)
                 setGeometry(geo);
-            else
-                setGeometry(0, 0, 1920, 1080);
-        } else {
-            setGeometry(0, 0, 1920, 1080);
         }
-        showFullScreen();
         m_view->fitInView(m_scene->sceneRect(), Qt::KeepAspectRatio);
     };
 
