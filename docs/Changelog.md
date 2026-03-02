@@ -37,6 +37,22 @@ All notable changes to this project will be documented in this file.
   - Toolbar overlay: add Button / Label / Panel, Delete, Properties, Done buttons
   - Double-click element to open property editor; Delete key removes selected element
   - Layout auto-saves when exiting edit mode; auto-loads on startup if file exists
+- Added movable editor toolbar with drag handle (grip lines, open/closed hand cursors)
+- Added page management system
+  - `PageManagerDialog`: create, rename, delete, and navigate pages
+  - `PageTabBar`: floating draggable page list panel toggled by "Page List" toolbar button
+  - Page list shows element counts per page and highlights the active page
+  - "Manage Pages…" link inside the floating panel opens the page manager dialog
+- Added page renaming (`LayoutEngine::renamePage`) with hash re-key and signal reconnect
+- Added keyboard shortcuts for the visual editor
+  - Arrow keys move selected element by 10px (grid step)
+  - Shift+Arrow moves selected element by 1px (fine positioning)
+  - W / Shift+W increases / decreases element width by 10px
+  - H / Shift+H increases / decreases element height by 10px
+  - Minimum element size enforced at 40×40px
+- Fixed Done button crash: deferred `setEditMode(false)` via `QTimer::singleShot(0)`
+- Fixed real-time resize handle updates during drag (EditorOverlay pointer passed to ResizeHandle)
+- Fixed page manager close crash: deferred `manageRequested` signal to prevent widget destruction mid-click
 
 ## [0.1.0] - 2026-03-01
 - Project scaffold: initial commit
