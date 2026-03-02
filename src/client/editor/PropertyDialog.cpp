@@ -22,10 +22,11 @@ PropertyDialog::PropertyDialog(UiElement *element, QWidget *parent)
     , m_bgColor(element->bgColor())
     , m_textColor(element->textColor())
 {
-    // Ensure the dialog gets its own window title bar so it can be moved,
-    // even when the parent is a frameless fullscreen window.
-    setWindowFlags(windowFlags() | Qt::Dialog | Qt::WindowTitleHint
-                   | Qt::WindowCloseButtonHint);
+    // Force a proper top-level window with title bar so the dialog is
+    // movable on every platform — even Wayland with a frameless parent.
+    setWindowFlags(Qt::Window | Qt::WindowTitleHint | Qt::WindowCloseButtonHint
+                   | Qt::WindowSystemMenuHint);
+    setAttribute(Qt::WA_DeleteOnClose, false);
     setWindowTitle(QStringLiteral("Element Properties — ") + element->elementId());
     setMinimumWidth(360);
     setupUi();

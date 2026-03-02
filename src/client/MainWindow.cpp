@@ -157,7 +157,7 @@ void MainWindow::toggleEditMode()
 
 void MainWindow::openPropertyDialog(UiElement *elem)
 {
-    PropertyDialog dlg(elem, this);
+    PropertyDialog dlg(elem, nullptr);  // nullptr parent → independent top-level window
     if (dlg.exec() == QDialog::Accepted) {
         UiElement *target = elem;
 
@@ -202,7 +202,7 @@ void MainWindow::openPropertyDialog(UiElement *elem)
 
 void MainWindow::openPageManager()
 {
-    PageManagerDialog dlg(m_engine, this);
+    PageManagerDialog dlg(m_engine, nullptr);  // nullptr parent → independent top-level window
     dlg.exec();
 
     // Refresh the page tab bar to reflect any changes

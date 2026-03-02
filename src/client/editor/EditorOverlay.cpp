@@ -376,10 +376,16 @@ bool EditorOverlay::eventFilter(QObject *watched, QEvent *event)
 
         if (elem) {
             selectElement(elem);
-            // Start drag
-            m_dragging = true;
-            m_dragStartScene = me->scenePos();
-            m_dragStartPos = elem->pos();
+
+            if (me->button() == Qt::RightButton) {
+                // Right-click: open property editor immediately
+                emit editPropertiesRequested(elem);
+            } else if (me->button() == Qt::LeftButton) {
+                // Left-click: start drag
+                m_dragging = true;
+                m_dragStartScene = me->scenePos();
+                m_dragStartPos = elem->pos();
+            }
             return true;  // consume event — don't trigger button clicks
         } else {
             deselectAll();
@@ -589,8 +595,6 @@ void EditorOverlay::showToolbar()
     );
 
     auto *actAddBtn = m_toolbar->addAction(QStringLiteral("+ Button"));
-    auto *actAddLbl = m_toolbar->addAction(QStringLiteral("+ Label"));
-    auto *actAddPnl = m_toolbar->addAction(QStringLiteral("+ Panel"));
     m_toolbar->addSeparator();
     auto *actAddPin = m_toolbar->addAction(QStringLiteral("+ PIN Entry"));
     auto *actAddKpd = m_toolbar->addAction(QStringLiteral("+ Keypad"));
@@ -605,10 +609,6 @@ void EditorOverlay::showToolbar()
 
     connect(actAddBtn, &QAction::triggered, this,
             [this]() { addElement(ElementType::Button); });
-    connect(actAddLbl, &QAction::triggered, this,
-            [this]() { addElement(ElementType::Label); });
-    connect(actAddPnl, &QAction::triggered, this,
-            [this]() { addElement(ElementType::Panel); });
     connect(actAddPin, &QAction::triggered, this,
             [this]() { addElement(ElementType::PinEntry); });
     connect(actAddKpd, &QAction::triggered, this,

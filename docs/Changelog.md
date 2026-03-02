@@ -69,8 +69,12 @@ All notable changes to this project will be documented in this file.
   - `PageWidget::replaceElementType()` swaps element in-place preserving common properties
   - Type-specific properties (masked, maxLength, keyValue, actionType) applied after conversion
 - Fixed PropertyDialog and PageManagerDialog not movable when parent is frameless fullscreen
-  - Explicit `Qt::Dialog | Qt::WindowTitleHint | Qt::WindowCloseButtonHint` flags on both dialogs
+  - Dialogs now use `Qt::Window` flag with `nullptr` parent for truly independent top-level windows
+  - Works correctly on Wayland and X11 regardless of parent window state
 - Client always starts on the Login page regardless of layout load order
+- Removed `+ Label` and `+ Panel` buttons from editor toolbar (use type change in Properties instead)
+- Added right-click to open Properties: right-clicking an element in edit mode opens its property dialog
+- Left-click drag and right-click property editing are now properly separated (no accidental drags on right-click)
 
 ## [0.1.0] - 2026-03-01
 - Project scaffold: initial commit
