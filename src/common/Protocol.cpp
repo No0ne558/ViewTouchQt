@@ -33,7 +33,7 @@ bool deserializeHeader(const QByteArray &data, Header &hdr)
 
     std::uint32_t magic{};
     std::uint16_t type{};
-    std::uint16_t payloadLen{};
+    std::uint32_t payloadLen{};
 
     in >> magic >> type >> payloadLen;
 
@@ -50,7 +50,7 @@ QByteArray buildMessage(MsgType type, const QByteArray &payload)
 {
     Header hdr;
     hdr.type       = type;
-    hdr.payloadLen = static_cast<std::uint16_t>(payload.size());
+    hdr.payloadLen = static_cast<std::uint32_t>(payload.size());
 
     QByteArray msg = serializeHeader(hdr);
     if (!payload.isEmpty())

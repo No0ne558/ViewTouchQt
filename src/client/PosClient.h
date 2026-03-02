@@ -27,6 +27,7 @@ signals:
     void connected();
     void disconnected();
     void buttonAckReceived();
+    void layoutSyncReceived(const QByteArray &layoutJson);
 
 private slots:
     void onConnected();

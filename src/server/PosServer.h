@@ -19,6 +19,12 @@ public:
     /// Start listening on the given address/port. Returns true on success.
     bool startListening(const QHostAddress &address, quint16 port);
 
+    /// Store the latest layout JSON and broadcast it to every connected client.
+    void setCurrentLayout(const QByteArray &layoutJson);
+
+    /// Send a message to every connected client.
+    void broadcastToAll(MsgType type, const QByteArray &payload = {});
+
 protected:
     void incomingConnection(qintptr socketDescriptor) override;
 
@@ -28,6 +34,7 @@ private slots:
 
 private:
     QList<ClientSession *> m_sessions;
+    QByteArray             m_currentLayout;   // cached for new-connection push
 };
 
 } // namespace vt

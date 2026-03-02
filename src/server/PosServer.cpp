@@ -27,6 +27,20 @@ bool PosServer::startListening(const QHostAddress &address, quint16 port)
     return true;
 }
 
+void PosServer::setCurrentLayout(const QByteArray &layoutJson)
+{
+    m_currentLayout = layoutJson;
+    qInfo() << "[server] Layout updated," << layoutJson.size() << "bytes — broadcasting to"
+            << m_sessions.size() << "client(s)";
+    broadcastToAll(MsgType::LayoutSync, m_currentLayout);
+}
+
+void PosServer::broadcastToAll(MsgType type, const QByteArray &payload)
+{
+    for (ClientSession *s : m_sessions)
+        s->send(type, payload);
+}
+
 void PosServer::incomingConnection(qintptr socketDescriptor)
 {
     auto *socket = new QTcpSocket(this);
@@ -43,6 +57,12 @@ void PosServer::incomingConnection(qintptr socketDescriptor)
             this,    &PosServer::onClientDisconnected);
     connect(session, &ClientSession::buttonPressed,
             this,    &PosServer::onButtonPressed);
+
+    // Push the current layout to the newly connected client.
+    if (!m_currentLayout.isEmpty()) {
+        qInfo() << "[server] Sending stored layout to new client:" << session->id();
+        session->send(MsgType::LayoutSync, m_currentLayout);
+    }
 }
 
 void PosServer::onClientDisconnected(ClientSession *session)

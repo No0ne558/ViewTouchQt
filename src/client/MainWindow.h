@@ -26,6 +26,13 @@ public:
     /// Access the editor overlay.
     EditorOverlay *editorOverlay() { return m_editor; }
 
+    /// Apply a layout received from the server (replaces current layout).
+    void applyLayoutFromNetwork(const QByteArray &layoutJson);
+
+signals:
+    /// Emitted whenever the authoritative layout changes (edit-mode save, initial load).
+    void layoutChanged(const QByteArray &layoutJson);
+
 protected:
     void resizeEvent(QResizeEvent *event) override;
     void showEvent(QShowEvent *event) override;

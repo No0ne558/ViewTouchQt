@@ -23,18 +23,19 @@ enum class MsgType : std::uint16_t {
     HeartbeatAck = 0x0002,
     ButtonPress  = 0x0010,
     ButtonAck    = 0x0011,
+    LayoutSync   = 0x0020,   // server → client: full layout JSON payload
 };
 
-// ── Fixed header (8 bytes) ──────────────────────────────────────────────────
-//  [ magic 4B ][ type 2B ][ payload_len 2B ]
+// ── Fixed header (10 bytes) ─────────────────────────────────────────────────
+//  [ magic 4B ][ type 2B ][ payload_len 4B ]
 struct Header {
     std::uint32_t magic      = kProtocolMagic;
     MsgType       type       = MsgType::Heartbeat;
-    std::uint16_t payloadLen = 0;
+    std::uint32_t payloadLen = 0;
 };
 
 // ── Convenience: fixed header size ──────────────────────────────────────────
-constexpr int kHeaderSize = 8;  // 4 + 2 + 2
+constexpr int kHeaderSize = 10;  // 4 + 2 + 4
 
 // ── Serialize a header into a byte array ────────────────────────────────────
 QByteArray serializeHeader(const Header &hdr);

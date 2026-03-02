@@ -86,7 +86,7 @@ void PosClient::processBuffer()
     }
 }
 
-void PosClient::handleMessage(const Header &hdr, const QByteArray & /*payload*/)
+void PosClient::handleMessage(const Header &hdr, const QByteArray &payload)
 {
     switch (hdr.type) {
     case MsgType::Heartbeat:
@@ -97,6 +97,11 @@ void PosClient::handleMessage(const Header &hdr, const QByteArray & /*payload*/)
     case MsgType::ButtonAck:
         qDebug() << "[client] Button ack received";
         emit buttonAckReceived();
+        break;
+
+    case MsgType::LayoutSync:
+        qInfo() << "[client] Layout sync received," << payload.size() << "bytes";
+        emit layoutSyncReceived(payload);
         break;
 
     default:

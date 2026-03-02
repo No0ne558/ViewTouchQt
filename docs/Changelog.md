@@ -107,6 +107,18 @@ All notable changes to this project will be documented in this file.
   - Right panel: page properties (name, system page flag, inherit-from combo, apply button)
   - Rename propagation: updates inheritFrom references when a page is renamed
   - Delete cleanup: clears inheritFrom references when a page is deleted
+- Added layout synchronization over TCP
+  - Server pushes full layout JSON to every connected client on edit-mode save
+  - New clients receive the current layout immediately on connection
+  - Protocol upgraded: payload length expanded from uint16 to uint32 (header now 10 bytes)
+  - New `MsgType::LayoutSync` (0x0020) carries compact JSON layout payload
+  - `PosServer::setCurrentLayout()` caches and broadcasts layout to all sessions
+  - `PosClient::layoutSyncReceived` signal emitted on incoming layout sync
+  - `MainWindow::layoutChanged` signal emitted on initial load and edit-mode save
+  - `MainWindow::applyLayoutFromNetwork()` deserializes and replaces local layout
+  - Host wiring: layout changes flow from MainWindow → PosServer → all remote clients
+  - Client wiring: layout sync received from server is applied automatically
+  - Each client remains an independent terminal (own POS state, own interactions)
 
 ## [0.1.0] - 2026-03-01
 - Project scaffold: initial commit

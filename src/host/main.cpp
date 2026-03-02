@@ -64,6 +64,11 @@ int main(int argc, char *argv[])
     vt::MainWindow window(&client);
     window.show();
 
+    // When the host edits and saves the layout, push it to the server so
+    // all remote clients receive it automatically.
+    QObject::connect(&window, &vt::MainWindow::layoutChanged,
+                     &server, &vt::PosServer::setCurrentLayout);
+
     // Connect to the local server once the event loop is running so the
     // server socket is fully ready.
     QTimer::singleShot(0, &client, [&client, port]() {

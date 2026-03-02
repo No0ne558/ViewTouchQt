@@ -11,6 +11,8 @@
 
 #include <QCoreApplication>
 #include <QDir>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QKeyEvent>
 #include <QMessageBox>
 #include <QResizeEvent>
@@ -85,6 +87,11 @@ MainWindow::MainWindow(PosClient *client, QWidget *parent)
             // Auto-save layout when exiting edit mode
             QString path = defaultLayoutPath();
             LayoutSerializer::saveToFile(m_engine, path);
+
+            // Notify (host wiring broadcasts this to clients)
+            QJsonObject root = LayoutSerializer::serialize(m_engine);
+            QJsonDocument doc(root);
+            emit layoutChanged(doc.toJson(QJsonDocument::Compact));
         }
     });
 
@@ -95,6 +102,13 @@ MainWindow::MainWindow(PosClient *client, QWidget *parent)
     // Ensure system pages always exist (Login, Tables, Order).
     ensureSystemPages();
 
+    // Emit initial layout so the host can push it to the server cache.
+    {
+        QJsonObject root = LayoutSerializer::serialize(m_engine);
+        QJsonDocument doc(root);
+        emit layoutChanged(doc.toJson(QJsonDocument::Compact));
+    }
+
     // ── Fullscreen ──────────────────────────────────────────────────────
     setWindowFlags(Qt::Window | Qt::FramelessWindowHint);
     setWindowState(Qt::WindowFullScreen);
@@ -102,6 +116,11 @@ MainWindow::MainWindow(PosClient *client, QWidget *parent)
     if (QScreen *scr = screen()) {
         setGeometry(scr->geometry());
     }
+
+    // Force an explicit resize to 1920×1080 as a fallback for remote X
+    // servers (e.g. XServer XSDL) where QScreen geometry may not be
+    // reported correctly at initial setup time.
+    resize(1920, 1080);
 }
 
 void MainWindow::resizeEvent(QResizeEvent *event)
@@ -117,13 +136,21 @@ void MainWindow::showEvent(QShowEvent *event)
 
     auto applyFullscreen = [this]() {
         if (QScreen *scr = screen()) {
-            setGeometry(scr->geometry());
+            QRect geo = scr->geometry();
+            if (geo.width() > 0 && geo.height() > 0)
+                setGeometry(geo);
+            else
+                setGeometry(0, 0, 1920, 1080);
+        } else {
+            setGeometry(0, 0, 1920, 1080);
         }
+        showFullScreen();
         m_view->fitInView(m_scene->sceneRect(), Qt::KeepAspectRatio);
     };
 
     QTimer::singleShot(100, this, applyFullscreen);
     QTimer::singleShot(500, this, applyFullscreen);
+    QTimer::singleShot(1500, this, applyFullscreen);
 }
 
 void MainWindow::keyPressEvent(QKeyEvent *event)
@@ -542,6 +569,34 @@ void MainWindow::handleAction(const QString &pageName, ActionType action, const 
         else
             qWarning() << "[action] Navigation target page not found:" << targetPage;
         break;
+    }
+}
+
+// ── Layout sync from server ─────────────────────────────────────────────────
+
+void MainWindow::applyLayoutFromNetwork(const QByteArray &layoutJson)
+{
+    QJsonParseError err;
+    QJsonDocument doc = QJsonDocument::fromJson(layoutJson, &err);
+    if (err.error != QJsonParseError::NoError) {
+        qWarning() << "[sync] Layout JSON parse error:" << err.errorString();
+        return;
+    }
+    if (!doc.isObject()) {
+        qWarning() << "[sync] Layout root is not a JSON object";
+        return;
+    }
+
+    // If in edit mode, leave it first so the overlay state is clean.
+    if (m_editor->isEditMode())
+        m_editor->setEditMode(false);
+
+    if (LayoutSerializer::deserialize(m_engine, doc.object())) {
+        ensureSystemPages();
+        qInfo() << "[sync] Layout applied from server,"
+                << m_engine->pageNames().size() << "pages";
+    } else {
+        qWarning() << "[sync] Failed to deserialize layout from server";
     }
 }
 

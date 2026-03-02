@@ -48,5 +48,9 @@ int main(int argc, char *argv[])
     vt::MainWindow window(&client);
     window.show();
 
+    // Apply layout updates pushed from the server.
+    QObject::connect(&client, &vt::PosClient::layoutSyncReceived,
+                     &window, &vt::MainWindow::applyLayoutFromNetwork);
+
     return app.exec();
 }
