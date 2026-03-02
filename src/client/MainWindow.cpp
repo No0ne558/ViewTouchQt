@@ -380,19 +380,13 @@ void MainWindow::ensureSystemPages()
         m_engine->page(QStringLiteral("Order"))->setSystemPage(true);
     }
 
-    // ── Displays page ───────────────────────────────────────────────────
-    if (!m_engine->page(QStringLiteral("Displays"))) {
-        buildDisplaysPage();
-    } else {
-        m_engine->page(QStringLiteral("Displays"))->setSystemPage(true);
-    }
+    // ── Displays page (always rebuilt to ensure latest layout) ─────────
+    m_engine->removePage(QStringLiteral("Displays"));
+    buildDisplaysPage();
 
-    // ── DisplayEdit page ────────────────────────────────────────────────
-    if (!m_engine->page(QStringLiteral("DisplayEdit"))) {
-        buildDisplayEditPage();
-    } else {
-        m_engine->page(QStringLiteral("DisplayEdit"))->setSystemPage(true);
-    }
+    // ── DisplayEdit page (always rebuilt to ensure latest layout) ────────
+    m_engine->removePage(QStringLiteral("DisplayEdit"));
+    buildDisplayEditPage();
 
     // Wire up local keypad → PIN entry connections for all pages
     for (const QString &name : m_engine->pageNames()) {
@@ -607,7 +601,7 @@ void MainWindow::handleAction(const QString &pageName, ActionType action, const 
         handleAddDisplay();
         break;
     case ActionType::EditDisplay:
-        handleEditDisplay();
+        // Tap-to-edit wired directly in refreshDisplayList(); no-op here.
         break;
     case ActionType::RemoveDisplay:
         handleRemoveDisplay();
@@ -642,78 +636,45 @@ void MainWindow::buildDisplaysPage()
     title->setFontSize(40);
     title->setTextColor(Qt::white);
 
-    // Display list area — labels will be populated dynamically
     // Placeholder hint
-    auto *hint = pg->addLabel(QStringLiteral("disp_hint"), 40, 110, 1200, 40,
-                               QStringLiteral("No displays configured yet."));
+    auto *hint = pg->addLabel(QStringLiteral("disp_hint"), 40, 110, 1400, 40,
+                               QStringLiteral("No displays configured. Tap Add Display to create one."));
     hint->setFontSize(18);
     hint->setTextColor(QColor(150, 150, 150));
 
-    // We'll create up to 10 row labels for the display list
+    // Display list rows — tap any row to edit that display directly.
     constexpr qreal listX = 40;
     constexpr qreal listY = 160;
-    constexpr qreal rowH  = 60;
-    constexpr qreal rowGap = 10;
+    constexpr qreal rowH  = 70;
+    constexpr qreal rowGap = 8;
 
     for (int i = 0; i < 10; ++i) {
         qreal y = listY + i * (rowH + rowGap);
         QString id = QStringLiteral("disp_row_%1").arg(i);
-        auto *row = pg->addButton(id, listX, y, 1200, rowH, QString());
+        auto *row = pg->addButton(id, listX, y, 1840, rowH, QString());
         row->setBgColor(QColor(45, 45, 50));
         row->setTextColor(Qt::white);
         row->setFontSize(20);
         row->setCornerRadius(6);
         row->setVisible(false);
-
-        // Wire selection handler once — index is fixed per row button.
-        connect(row, &ButtonElement::clicked, this, [this, i]() {
-            if (i < m_displayMgr->count()) {
-                m_selectedDisplayIdx = i;
-                refreshDisplayList();
-            }
-        });
     }
 
-    // Action buttons — right column
-    constexpr qreal btnX = 1350;
-    constexpr qreal btnW = 500;
-    constexpr qreal btnH = 80;
-    constexpr qreal btnGap = 20;
-
-    auto *addBtn = pg->addActionButton(QStringLiteral("disp_add"), btnX, 160, btnW, btnH,
-                                        QStringLiteral("Add Display"), ActionType::AddDisplay);
+    // Bottom bar — Add Display + Back
+    auto *addBtn = pg->addActionButton(QStringLiteral("disp_add"), 40, 960, 400, 80,
+                                        QStringLiteral("+ Add Display"), ActionType::AddDisplay);
     addBtn->setBgColor(QColor(40, 120, 40));
     addBtn->setTextColor(Qt::white);
-    addBtn->setFontSize(24);
+    addBtn->setFontSize(26);
 
-    auto *editBtn = pg->addActionButton(QStringLiteral("disp_edit"), btnX, 160 + (btnH + btnGap), btnW, btnH,
-                                         QStringLiteral("Edit Display"), ActionType::EditDisplay);
-    editBtn->setBgColor(QColor(50, 100, 180));
-    editBtn->setTextColor(Qt::white);
-    editBtn->setFontSize(24);
-
-    auto *removeBtn = pg->addActionButton(QStringLiteral("disp_remove"), btnX, 160 + 2*(btnH + btnGap), btnW, btnH,
-                                           QStringLiteral("Remove Display"), ActionType::RemoveDisplay);
-    removeBtn->setBgColor(QColor(180, 40, 40));
-    removeBtn->setTextColor(Qt::white);
-    removeBtn->setFontSize(24);
-
-    auto *toggleBtn = pg->addActionButton(QStringLiteral("disp_toggle"), btnX, 160 + 3*(btnH + btnGap), btnW, btnH,
-                                           QStringLiteral("Activate / Deactivate"), ActionType::ToggleDisplay);
-    toggleBtn->setBgColor(QColor(160, 120, 20));
-    toggleBtn->setTextColor(Qt::white);
-    toggleBtn->setFontSize(24);
-
-    // Back button
-    auto *backBtn = pg->addActionButton(QStringLiteral("disp_back"), btnX, 160 + 5*(btnH + btnGap), btnW, btnH,
+    auto *backBtn = pg->addActionButton(QStringLiteral("disp_back"), 1480, 960, 400, 80,
                                          QStringLiteral("← Back"), ActionType::Navigation);
     backBtn->setTargetPage(QStringLiteral("Tables"));
     backBtn->setBgColor(QColor(80, 80, 80));
     backBtn->setTextColor(Qt::white);
-    backBtn->setFontSize(24);
+    backBtn->setFontSize(26);
 
     // Status label
-    auto *status = pg->addLabel(QStringLiteral("disp_status"), 40, 900, 1200, 40, QString());
+    auto *status = pg->addLabel(QStringLiteral("disp_status"), 500, 970, 900, 40, QString());
     status->setFontSize(18);
     status->setTextColor(QColor(200, 200, 100));
 }
@@ -734,14 +695,14 @@ void MainWindow::buildDisplayEditPage()
     title->setFontSize(40);
     title->setTextColor(Qt::white);
 
-    // Form fields — centered column
-    constexpr qreal formX = 460;
+    // Form fields — left-center column
+    constexpr qreal formX = 40;
     constexpr qreal labelW = 340;
-    constexpr qreal fieldX = 810;
+    constexpr qreal fieldX = 390;
     constexpr qreal fieldW = 600;
     constexpr qreal rowH = 60;
-    constexpr qreal rowGap = 30;
-    qreal y = 160;
+    constexpr qreal rowGap = 24;
+    qreal y = 130;
 
     // Display Name
     auto *nameLabel = pg->addLabel(QStringLiteral("dedit_name_lbl"), formX, y, labelW, rowH,
@@ -773,14 +734,13 @@ void MainWindow::buildDisplayEditPage()
 
     y += rowH + rowGap;
 
-    // Printer (label — the actual selection is done via a button that cycles)
+    // Printer
     auto *printerLabel = pg->addLabel(QStringLiteral("dedit_printer_lbl"), formX, y, labelW, rowH,
                                        QStringLiteral("Printer:"));
     printerLabel->setFontSize(26);
     printerLabel->setTextColor(Qt::white);
     printerLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
 
-    // Printer selection button — tapping cycles through available CUPS printers
     auto *printerBtn = pg->addButton(QStringLiteral("dedit_printer"), fieldX, y, fieldW, rowH,
                                       QStringLiteral("(none)"));
     printerBtn->setBgColor(QColor(55, 55, 65));
@@ -796,17 +756,34 @@ void MainWindow::buildDisplayEditPage()
     testBtn->setTextColor(Qt::white);
     testBtn->setFontSize(24);
 
-    y += rowH + rowGap + 20;
+    // Right-side action buttons
+    constexpr qreal rbtnX = 1080;
+    constexpr qreal rbtnW = 420;
+    constexpr qreal rbtnH = 70;
 
-    // Done button
-    auto *doneBtn = pg->addActionButton(QStringLiteral("dedit_done"), fieldX, y, fieldW, rowH,
+    // Activate / Deactivate
+    auto *toggleBtn = pg->addActionButton(QStringLiteral("dedit_toggle"), rbtnX, 130, rbtnW, rbtnH,
+                                           QStringLiteral("Activate"), ActionType::ToggleDisplay);
+    toggleBtn->setBgColor(QColor(160, 120, 20));
+    toggleBtn->setTextColor(Qt::white);
+    toggleBtn->setFontSize(24);
+
+    // Remove Display
+    auto *removeBtn = pg->addActionButton(QStringLiteral("dedit_remove"), rbtnX, 220, rbtnW, rbtnH,
+                                           QStringLiteral("Remove Display"), ActionType::RemoveDisplay);
+    removeBtn->setBgColor(QColor(180, 40, 40));
+    removeBtn->setTextColor(Qt::white);
+    removeBtn->setFontSize(24);
+
+    // Done (save & back)
+    auto *doneBtn = pg->addActionButton(QStringLiteral("dedit_done"), rbtnX, 340, rbtnW, rbtnH,
                                          QStringLiteral("Done"), ActionType::DisplayDone);
     doneBtn->setBgColor(QColor(40, 120, 40));
     doneBtn->setTextColor(Qt::white);
     doneBtn->setFontSize(28);
 
     // Status label
-    auto *status = pg->addLabel(QStringLiteral("dedit_status"), 40, 900, 1200, 40, QString());
+    auto *status = pg->addLabel(QStringLiteral("dedit_status"), 40, 510, 1400, 40, QString());
     status->setFontSize(18);
     status->setTextColor(QColor(200, 200, 100));
 
@@ -928,7 +905,7 @@ void MainWindow::refreshDisplayList()
     if (auto *hint = pg->element(QStringLiteral("disp_hint")))
         hint->setVisible(displays.isEmpty());
 
-    // Update row buttons
+    // Update row buttons — each row taps directly to edit that display.
     for (int i = 0; i < 10; ++i) {
         QString id = QStringLiteral("disp_row_%1").arg(i);
         auto *row = pg->element(id);
@@ -936,23 +913,28 @@ void MainWindow::refreshDisplayList()
 
         if (i < displays.size()) {
             const auto &d = displays.at(i);
-            QString text = QStringLiteral("%1  |  %2  |  %3  |  %4")
+            QString status = d.active ? QStringLiteral("  ● ACTIVE") : QString();
+            QString text = QStringLiteral("%1   |   %2   |   %3%4")
                 .arg(d.name, -15)
                 .arg(d.ipAddress, -18)
                 .arg(d.printer.isEmpty() ? QStringLiteral("(no printer)") : d.printer, -15)
-                .arg(d.active ? QStringLiteral("ACTIVE") : QStringLiteral("INACTIVE"));
+                .arg(status);
             row->setLabel(text);
 
             auto *btn = static_cast<ButtonElement *>(row);
-            btn->setBgColor(i == m_selectedDisplayIdx ? QColor(70, 70, 120) : QColor(45, 45, 50));
+            btn->setBgColor(d.active ? QColor(35, 55, 45) : QColor(45, 45, 50));
             row->setVisible(true);
+
+            // Wire tap → edit (disconnect first to avoid duplicates).
+            disconnect(btn, &ButtonElement::clicked, nullptr, nullptr);
+            QString uuid = d.uuid;
+            connect(btn, &ButtonElement::clicked, this, [this, uuid]() {
+                handleEditDisplay(uuid);
+            });
         } else {
             row->setVisible(false);
         }
     }
-
-    // Row click handlers are wired once in buildDisplaysPage().
-    // No disconnect/reconnect needed here.
 }
 
 void MainWindow::handleAddDisplay()
@@ -961,31 +943,22 @@ void MainWindow::handleAddDisplay()
         QStringLiteral("Display %1").arg(m_displayMgr->count() + 1),
         QStringLiteral("192.168.1."));
     m_displayMgr->addDisplay(cfg);
-    m_selectedDisplayIdx = m_displayMgr->count() - 1;
     m_displayMgr->saveToFile(DisplayManager::defaultFilePath());
-    refreshDisplayList();
 
-    if (auto *status = m_engine->page(QStringLiteral("Displays"))->element(QStringLiteral("disp_status")))
-        status->setLabel(QStringLiteral("Display added. Select it and press Edit to configure."));
+    // Go straight to editing the new display.
+    handleEditDisplay(cfg.uuid);
 }
 
-void MainWindow::handleEditDisplay()
+void MainWindow::handleEditDisplay(const QString &uuid)
 {
-    if (m_selectedDisplayIdx < 0 || m_selectedDisplayIdx >= m_displayMgr->count()) {
-        if (auto *pg = m_engine->page(QStringLiteral("Displays")))
-            if (auto *s = pg->element(QStringLiteral("disp_status")))
-                s->setLabel(QStringLiteral("Select a display first."));
-        return;
-    }
-
-    auto *cfg = m_displayMgr->displayAt(m_selectedDisplayIdx);
+    auto *cfg = m_displayMgr->display(uuid);
     if (!cfg) return;
-    m_editingDisplayUuid = cfg->uuid;
+    m_editingDisplayUuid = uuid;
 
-    // Populate DisplayEdit fields
     auto *editPg = m_engine->page(QStringLiteral("DisplayEdit"));
     if (!editPg) return;
 
+    // Populate fields
     if (auto *nameField = static_cast<PinEntryElement *>(editPg->element(QStringLiteral("dedit_name")))) {
         nameField->clearPin();
         for (QChar ch : cfg->name)
@@ -998,9 +971,8 @@ void MainWindow::handleEditDisplay()
     }
 
     // Set printer button label
-    if (auto *printerBtn = editPg->element(QStringLiteral("dedit_printer"))) {
+    if (auto *printerBtn = editPg->element(QStringLiteral("dedit_printer")))
         printerBtn->setLabel(cfg->printer.isEmpty() ? QStringLiteral("(none)") : cfg->printer);
-    }
 
     // Wire printer button to cycle through CUPS printers
     if (auto *printerBtn = static_cast<ButtonElement *>(editPg->element(QStringLiteral("dedit_printer")))) {
@@ -1011,7 +983,6 @@ void MainWindow::handleEditDisplay()
                 printerBtn->setLabel(QStringLiteral("(no printers found)"));
                 return;
             }
-            // Cycle to next printer
             QString current = printerBtn->label();
             int idx = printers.indexOf(current);
             int next = (idx + 1) % printers.size();
@@ -1019,59 +990,60 @@ void MainWindow::handleEditDisplay()
         });
     }
 
+    // Update toggle button label to reflect current state
+    if (auto *toggleBtn = editPg->element(QStringLiteral("dedit_toggle")))
+        toggleBtn->setLabel(cfg->active ? QStringLiteral("Deactivate") : QStringLiteral("Activate"));
+
+    // Clear status
+    if (auto *s = editPg->element(QStringLiteral("dedit_status")))
+        s->setLabel(QString());
+
     m_engine->showPage(QStringLiteral("DisplayEdit"));
 }
 
 void MainWindow::handleRemoveDisplay()
 {
-    if (m_selectedDisplayIdx < 0 || m_selectedDisplayIdx >= m_displayMgr->count()) {
-        if (auto *pg = m_engine->page(QStringLiteral("Displays")))
-            if (auto *s = pg->element(QStringLiteral("disp_status")))
-                s->setLabel(QStringLiteral("Select a display to remove."));
-        return;
-    }
+    // Operates on the display currently being edited.
+    auto *cfg = m_displayMgr->display(m_editingDisplayUuid);
+    if (!cfg) return;
 
-    auto *cfg = m_displayMgr->displayAt(m_selectedDisplayIdx);
-    if (cfg) {
-        QString name = cfg->name;
-        QString uuid = cfg->uuid;
-        stopDisplayClient(uuid);
-        m_displayMgr->removeDisplay(uuid);
-        m_displayMgr->saveToFile(DisplayManager::defaultFilePath());
-        m_selectedDisplayIdx = -1;
-        refreshDisplayList();
+    QString name = cfg->name;
+    QString uuid = cfg->uuid;
+    stopDisplayClient(uuid);
+    m_displayMgr->removeDisplay(uuid);
+    m_displayMgr->saveToFile(DisplayManager::defaultFilePath());
+    m_editingDisplayUuid.clear();
 
-        if (auto *pg = m_engine->page(QStringLiteral("Displays")))
-            if (auto *s = pg->element(QStringLiteral("disp_status")))
-                s->setLabel(QStringLiteral("Removed: ") + name);
-    }
+    refreshDisplayList();
+    m_engine->showPage(QStringLiteral("Displays"));
+
+    if (auto *pg = m_engine->page(QStringLiteral("Displays")))
+        if (auto *s = pg->element(QStringLiteral("disp_status")))
+            s->setLabel(QStringLiteral("Removed: ") + name);
 }
 
 void MainWindow::handleToggleDisplay()
 {
-    if (m_selectedDisplayIdx < 0 || m_selectedDisplayIdx >= m_displayMgr->count()) {
-        if (auto *pg = m_engine->page(QStringLiteral("Displays")))
-            if (auto *s = pg->element(QStringLiteral("disp_status")))
-                s->setLabel(QStringLiteral("Select a display to toggle."));
-        return;
-    }
+    // Operates on the display currently being edited.
+    auto *cfg = m_displayMgr->display(m_editingDisplayUuid);
+    if (!cfg) return;
 
-    auto *cfg = m_displayMgr->displayAt(m_selectedDisplayIdx);
-    if (cfg) {
-        bool newState = m_displayMgr->toggleActive(cfg->uuid);
-        m_displayMgr->saveToFile(DisplayManager::defaultFilePath());
+    bool newState = m_displayMgr->toggleActive(cfg->uuid);
+    m_displayMgr->saveToFile(DisplayManager::defaultFilePath());
 
-        // Launch or stop the remote client process.
-        if (newState && !cfg->ipAddress.isEmpty())
-            launchDisplayClient(*cfg);
-        else
-            stopDisplayClient(cfg->uuid);
+    // Launch or stop the remote client process.
+    if (newState && !cfg->ipAddress.isEmpty())
+        launchDisplayClient(*cfg);
+    else
+        stopDisplayClient(cfg->uuid);
 
-        refreshDisplayList();
-
-        if (auto *pg = m_engine->page(QStringLiteral("Displays")))
-            if (auto *s = pg->element(QStringLiteral("disp_status")))
-                s->setLabel(cfg->name + (newState ? QStringLiteral(" activated") : QStringLiteral(" deactivated")));
+    // Update toggle button label
+    auto *editPg = m_engine->page(QStringLiteral("DisplayEdit"));
+    if (editPg) {
+        if (auto *toggleBtn = editPg->element(QStringLiteral("dedit_toggle")))
+            toggleBtn->setLabel(newState ? QStringLiteral("Deactivate") : QStringLiteral("Activate"));
+        if (auto *s = editPg->element(QStringLiteral("dedit_status")))
+            s->setLabel(cfg->name + (newState ? QStringLiteral(" activated") : QStringLiteral(" deactivated")));
     }
 }
 

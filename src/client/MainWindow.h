@@ -57,7 +57,7 @@ private:
     // ── Display management helpers ──────────────────────────────────────
     void refreshDisplayList();
     void handleAddDisplay();
-    void handleEditDisplay();
+    void handleEditDisplay(const QString &uuid);
     void handleRemoveDisplay();
     void handleToggleDisplay();
     void handleTestPrinter();
@@ -85,7 +85,6 @@ private:
     PosClient       *m_client = nullptr;
     DisplayManager  *m_displayMgr = nullptr;
     QString          m_lastPressedButtonId;
-    int              m_selectedDisplayIdx = -1;   // index in DisplayManager
     QString          m_editingDisplayUuid;        // UUID of display being edited
     QHash<QString, QProcess *> m_displayProcesses; // uuid → vt_client process
 };
