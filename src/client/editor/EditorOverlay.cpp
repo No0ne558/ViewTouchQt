@@ -14,6 +14,7 @@
 #include <QGraphicsSceneMouseEvent>
 #include <QGraphicsView>
 #include <QPen>
+#include <QTimer>
 #include <QToolButton>
 
 namespace vt {
@@ -22,10 +23,11 @@ namespace vt {
 // ResizeHandle
 // ═════════════════════════════════════════════════════════════════════════════
 
-ResizeHandle::ResizeHandle(Position pos, QGraphicsItem *parent)
+ResizeHandle::ResizeHandle(Position pos, EditorOverlay *overlay, QGraphicsItem *parent)
     : QGraphicsRectItem(-kHandleSize / 2, -kHandleSize / 2,
                         kHandleSize, kHandleSize, parent)
     , m_pos(pos)
+    , m_overlay(overlay)
 {
     setBrush(QColor(0, 120, 255));
     setPen(QPen(Qt::white, 1));
@@ -127,9 +129,9 @@ void ResizeHandle::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
     elem->setPos(r.topLeft());
     elem->resizeTo(r.width(), r.height());
 
-    // Update sibling handles via the overlay
-    auto *overlay = qobject_cast<EditorOverlay *>(elem->scene()->parent());
-    // We'll update handles at release instead, parent handles approach
+    // Update all sibling handles and selection rect in real-time
+    if (m_overlay)
+        m_overlay->updateHandles();
     event->accept();
 }
 
@@ -391,7 +393,7 @@ void EditorOverlay::createResizeHandles()
     };
 
     for (auto pos : positions) {
-        auto *h = new ResizeHandle(pos, m_selected);
+        auto *h = new ResizeHandle(pos, this, m_selected);
         m_handles.append(h);
     }
 }
@@ -459,7 +461,9 @@ void EditorOverlay::showToolbar()
             emit editPropertiesRequested(m_selected);
     });
     connect(actDone, &QAction::triggered, this, [this]() {
-        setEditMode(false);
+        // Defer to avoid deleting the toolbar (and proxy) while its
+        // click event is still being processed — prevents crash.
+        QTimer::singleShot(0, this, [this]() { setEditMode(false); });
     });
 
     m_toolbarProxy = m_scene->addWidget(m_toolbar);

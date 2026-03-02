@@ -17,12 +17,14 @@
 
 namespace vt {
 
+class EditorOverlay;  // forward declaration
+
 /// Small square handle for resizing an element from a corner or edge.
 class ResizeHandle : public QGraphicsRectItem {
 public:
     enum Position { TopLeft, Top, TopRight, Right, BottomRight, Bottom, BottomLeft, Left };
 
-    ResizeHandle(Position pos, QGraphicsItem *parent = nullptr);
+    ResizeHandle(Position pos, EditorOverlay *overlay, QGraphicsItem *parent = nullptr);
 
     Position handlePosition() const { return m_pos; }
 
@@ -36,6 +38,7 @@ protected:
 
 private:
     Position m_pos;
+    EditorOverlay *m_overlay = nullptr;
     QPointF  m_pressPos;
     QRectF   m_startRect;
     QPointF  m_startScenePos;
@@ -77,6 +80,13 @@ signals:
     /// Request to open property editor for the given element.
     void editPropertiesRequested(UiElement *elem);
 
+public:
+    /// Snap a position to the grid (optional, 10px).
+    static QPointF snapToGrid(const QPointF &pos, qreal grid = 10.0);
+
+    /// Refresh selection rect + resize handle positions (called by ResizeHandle too).
+    void updateHandles();
+
 private:
     void installEventFilter();
     void removeEventFilter();
@@ -84,17 +94,12 @@ private:
     /// Scene-level event filter to intercept clicks on elements.
     bool eventFilter(QObject *watched, QEvent *event) override;
 
-    void updateHandles();
     void hideHandles();
     void showToolbar();
     void hideToolbar();
 
     void createSelectionRect();
     void createResizeHandles();
-
-public:
-    /// Snap a position to the grid (optional, 10px).
-    static QPointF snapToGrid(const QPointF &pos, qreal grid = 10.0);
 
 private:
 
