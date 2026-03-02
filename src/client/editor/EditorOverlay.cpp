@@ -158,9 +158,13 @@ EditorOverlay::EditorOverlay(LayoutEngine *engine, QGraphicsScene *scene,
     m_pageTabBar = new PageTabBar(engine, scene, this);
 
     // When user clicks a tab, deselect (elements may belong to old page)
-    // and refresh the tab bar highlight.
     connect(m_pageTabBar, &PageTabBar::pageSelected, this, [this]() {
         deselectAll();
+    });
+
+    // Forward "Manage Pages..." click to the main window
+    connect(m_pageTabBar, &PageTabBar::manageRequested, this, [this]() {
+        emit pageManagerRequested();
     });
 }
 
@@ -183,13 +187,12 @@ void EditorOverlay::setEditMode(bool on)
     if (on) {
         installEventFilter();
         showToolbar();
-        m_pageTabBar->setVisible(true);
         qDebug() << "[editor] Edit mode ON";
     } else {
         deselectAll();
         removeEventFilter();
         hideToolbar();
-        m_pageTabBar->setVisible(false);
+        m_pageTabBar->setVisible(false);   // hide panel when leaving edit mode
         qDebug() << "[editor] Edit mode OFF";
     }
 
@@ -323,18 +326,15 @@ bool EditorOverlay::eventFilter(QObject *watched, QEvent *event)
             return false;  // let drag handle process
         }
 
-        // Check if click is on the page tab bar
+        // Check if click is on the floating page list panel
         if (m_pageTabBar && m_pageTabBar->isVisible()) {
-            // The tab bar proxy is an item in the scene; check via itemAt
             QGraphicsItem *topItem = m_scene->itemAt(me->scenePos(), QTransform());
             if (topItem) {
-                // Walk up the parent chain to see if it belongs to a proxy widget
+                // Walk up parent chain: if we reach the page tab bar container, let it handle
                 QGraphicsItem *check = topItem;
                 while (check) {
-                    if (auto *proxy = dynamic_cast<QGraphicsProxyWidget *>(check)) {
-                        if (proxy != m_toolbarProxy) {
-                            return false;  // let page tab bar process
-                        }
+                    if (check == m_pageTabBar->containerItem()) {
+                        return false;  // let page list panel process
                     }
                     check = check->parentItem();
                 }
@@ -530,7 +530,7 @@ void EditorOverlay::showToolbar()
     auto *actDelete = m_toolbar->addAction(QStringLiteral("Delete"));
     auto *actProps  = m_toolbar->addAction(QStringLiteral("Properties"));
     m_toolbar->addSeparator();
-    auto *actPages  = m_toolbar->addAction(QStringLiteral("Pages"));
+    auto *actPages  = m_toolbar->addAction(QStringLiteral("Page List"));
     m_toolbar->addSeparator();
     auto *actDone   = m_toolbar->addAction(QStringLiteral("Done (F2)"));
 
@@ -547,7 +547,7 @@ void EditorOverlay::showToolbar()
             emit editPropertiesRequested(m_selected);
     });
     connect(actPages, &QAction::triggered, this, [this]() {
-        emit pageManagerRequested();
+        m_pageTabBar->toggle();
     });
     connect(actDone, &QAction::triggered, this, [this]() {
         QTimer::singleShot(0, this, [this]() { setEditMode(false); });

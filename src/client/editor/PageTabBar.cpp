@@ -2,10 +2,11 @@
 // src/client/editor/PageTabBar.cpp
 
 #include "PageTabBar.h"
+#include "EditorOverlay.h"   // for ToolbarDragHandle
 
-#include <QHBoxLayout>
 #include <QLabel>
 #include <QPushButton>
+#include <QVBoxLayout>
 
 namespace vt {
 
@@ -26,19 +27,30 @@ PageTabBar::~PageTabBar()
 
 void PageTabBar::refresh()
 {
-    bool wasVisible = isVisible();
-    if (wasVisible) {
+    if (isVisible()) {
+        // Remember position
+        QPointF pos = m_container->pos();
         destroyWidget();
         buildWidget();
+        m_container->setPos(pos);
     }
 }
 
 void PageTabBar::setVisible(bool visible)
 {
-    if (visible && !m_proxy) {
+    if (visible && !m_container) {
         buildWidget();
-    } else if (!visible && m_proxy) {
+    } else if (!visible && m_container) {
         destroyWidget();
+    }
+}
+
+void PageTabBar::toggle()
+{
+    if (isVisible()) {
+        destroyWidget();
+    } else {
+        buildWidget();
     }
 }
 
@@ -46,27 +58,32 @@ void PageTabBar::setVisible(bool visible)
 
 void PageTabBar::buildWidget()
 {
-    m_bar = new QWidget;
-    m_bar->setStyleSheet(
-        "QWidget#pageTabBar { background: rgba(25,25,25,220); "
-        "                     border-top: 2px solid #0078D4; }"
-        "QPushButton { color: #ccc; background: #333; border: 1px solid #555; "
-        "              border-radius: 4px; padding: 8px 18px; margin: 3px; "
-        "              font-size: 15px; min-width: 80px; }"
+    // ── Build the Qt widget ─────────────────────────────────────────────
+    m_panel = new QWidget;
+    m_panel->setObjectName(QStringLiteral("pageListPanel"));
+    m_panel->setStyleSheet(
+        "QWidget#pageListPanel { background: rgba(30,30,30,235); "
+        "    border: 1px solid #555; border-radius: 8px; }"
+        "QLabel#pageListTitle { color: #ddd; font-size: 15px; "
+        "    font-weight: bold; padding: 4px 0; }"
+        "QPushButton { color: #ccc; background: #3a3a3a; border: 1px solid #555; "
+        "    border-radius: 4px; padding: 7px 14px; margin: 2px 0; "
+        "    font-size: 14px; text-align: left; }"
         "QPushButton:hover { background: #0078D4; color: white; }"
         "QPushButton:checked { background: #0078D4; color: white; "
-        "                      border: 2px solid #40a0ff; font-weight: bold; }"
+        "    border: 2px solid #40a0ff; font-weight: bold; }"
+        "QPushButton#manageBtn { color: #aaa; background: transparent; "
+        "    border: 1px dashed #666; font-size: 12px; margin-top: 6px; }"
+        "QPushButton#manageBtn:hover { color: white; border-color: #0078D4; }"
     );
-    m_bar->setObjectName(QStringLiteral("pageTabBar"));
 
-    auto *layout = new QHBoxLayout(m_bar);
-    layout->setContentsMargins(10, 4, 10, 4);
+    auto *layout = new QVBoxLayout(m_panel);
+    layout->setContentsMargins(10, 8, 10, 8);
+    layout->setSpacing(2);
 
-    // "Pages:" label
-    auto *label = new QLabel(QStringLiteral("Pages:"));
-    label->setStyleSheet(QStringLiteral(
-        "color: #aaa; font-size: 14px; font-weight: bold; padding-right: 6px;"));
-    layout->addWidget(label);
+    auto *title = new QLabel(QStringLiteral("Pages"));
+    title->setObjectName(QStringLiteral("pageListTitle"));
+    layout->addWidget(title);
 
     QStringList pages = m_engine->pageNames();
     pages.sort();
@@ -74,17 +91,20 @@ void PageTabBar::buildWidget()
 
     m_tabs.clear();
     for (const QString &name : pages) {
-        auto *btn = new QPushButton(name);
+        auto *pg = m_engine->page(name);
+        int count = pg ? pg->elements().size() : 0;
+        QString label = QStringLiteral("%1  (%2)").arg(name).arg(count);
+
+        auto *btn = new QPushButton(label);
         btn->setCheckable(true);
         btn->setChecked(name == activeName);
         btn->setCursor(Qt::PointingHandCursor);
+        btn->setMinimumWidth(180);
 
         connect(btn, &QPushButton::clicked, this, [this, name, btn]() {
-            // Uncheck all, check this one
             for (auto *other : m_tabs)
                 other->setChecked(false);
             btn->setChecked(true);
-
             m_engine->showPage(name);
             emit pageSelected(name);
         });
@@ -93,30 +113,52 @@ void PageTabBar::buildWidget()
         m_tabs.append(btn);
     }
 
-    layout->addStretch();
+    // "Manage Pages..." button at the bottom
+    auto *manageBtn = new QPushButton(QStringLiteral("Manage Pages..."));
+    manageBtn->setObjectName(QStringLiteral("manageBtn"));
+    manageBtn->setCursor(Qt::PointingHandCursor);
+    connect(manageBtn, &QPushButton::clicked, this, [this]() {
+        emit manageRequested();
+    });
+    layout->addWidget(manageBtn);
 
-    // Size the widget
-    m_bar->adjustSize();
+    m_panel->adjustSize();
 
-    // Add to scene
-    m_proxy = m_scene->addWidget(m_bar);
-    m_proxy->setZValue(19000);
+    // ── Build the scene container (drag handle + proxy) ─────────────────
+    constexpr qreal kGripH = 24.0;
+    QSizeF panelSize = m_panel->sizeHint();
 
-    // Position at the bottom of the 1920×1080 canvas
-    qreal barH = m_bar->sizeHint().height();
-    m_proxy->setPos(0, 1080 - barH);
+    m_container = new QGraphicsRectItem(0, 0, panelSize.width(), kGripH + panelSize.height());
+    m_container->setBrush(Qt::NoBrush);
+    m_container->setPen(Qt::NoPen);
+    m_container->setZValue(19000);
 
-    // Stretch to full width
-    m_bar->setFixedWidth(1920);
+    // Drag grip at the top
+    m_grip = new ToolbarDragHandle(panelSize.width(), kGripH, m_container);
+    m_grip->setPos(0, 0);
+    m_grip->setZValue(19001);
+
+    // Proxy widget below the grip
+    m_proxy = m_scene->addWidget(m_panel);
+    m_proxy->setParentItem(m_container);
+    m_proxy->setPos(0, kGripH);
+    m_proxy->setZValue(19001);
+
+    m_scene->addItem(m_container);
+
+    // Position: right side of the canvas, under the toolbar
+    m_container->setPos(1920 - panelSize.width() - 20, 70);
 }
 
 void PageTabBar::destroyWidget()
 {
-    if (m_proxy) {
-        m_scene->removeItem(m_proxy);
-        delete m_proxy;  // also deletes m_bar
-        m_proxy = nullptr;
-        m_bar   = nullptr;
+    if (m_container) {
+        m_scene->removeItem(m_container);
+        delete m_container;  // deletes children (grip + proxy + panel)
+        m_container = nullptr;
+        m_grip      = nullptr;
+        m_proxy     = nullptr;
+        m_panel     = nullptr;
         m_tabs.clear();
     }
 }

@@ -149,7 +149,7 @@ private:
     QToolBar             *m_toolbar      = nullptr;
     ToolbarDragHandle    *m_dragHandle   = nullptr;
 
-    // Page tab bar (bottom of screen, visible in edit mode)
+    // Page list panel (floating, toggled by toolbar button)
     PageTabBar *m_pageTabBar = nullptr;
 
     int m_nextId = 1;  // auto-increment for new element IDs
