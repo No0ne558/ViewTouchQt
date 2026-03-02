@@ -11,6 +11,9 @@ add_executable(vt_client
     layout/PanelElement.cpp
     layout/PageWidget.cpp
     layout/LayoutEngine.cpp
+    editor/EditorOverlay.cpp
+    editor/PropertyDialog.cpp
+    editor/LayoutSerializer.cpp
 )
 
 target_include_directories(vt_client PRIVATE

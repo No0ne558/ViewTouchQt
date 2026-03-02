@@ -52,6 +52,16 @@ bool LayoutEngine::removePage(const QString &name)
     return true;
 }
 
+void LayoutEngine::clearAll()
+{
+    if (m_activePage) {
+        m_activePage->detachFromScene();
+        m_activePage = nullptr;
+    }
+    qDeleteAll(m_pages);
+    m_pages.clear();
+}
+
 PageWidget *LayoutEngine::page(const QString &name) const
 {
     return m_pages.value(name, nullptr);

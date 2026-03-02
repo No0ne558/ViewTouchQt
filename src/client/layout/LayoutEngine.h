@@ -37,6 +37,9 @@ public:
     /// the active page; switch away first.
     bool removePage(const QString &name);
 
+    /// Remove all pages (detaches active page first).
+    void clearAll();
+
     /// Get a page by name (nullptr if not found).
     PageWidget *page(const QString &name) const;
 

@@ -27,6 +27,16 @@ All notable changes to this project will be documented in this file.
   - `LayoutEngine`: manages pages, page switching, forwards button clicks
 - Replaced hardcoded `ButtonItem` with layout engine in `MainWindow`
 - Test page demonstrates header panel, title label, two buttons, footer, status label
+- Fixed per-button flash: only the pressed button flashes on server ack
+- Fixed `setBgColor` sync: ButtonElement keeps `m_currentColor` in sync with background colour
+- Added built-in visual drag-and-drop editor (`src/client/editor/`)
+  - `EditorOverlay`: edit mode toggle (F2), element selection, drag to move, snap-to-grid (10px)
+  - `ResizeHandle`: 8-point resize handles (corners + edges) with per-axis cursors
+  - `PropertyDialog`: modal dialog to edit element ID, label, position, size, colours, corner radius
+  - `LayoutSerializer`: save/load full layout to/from JSON (`~/.config/ViewTouchQt/layout.json`)
+  - Toolbar overlay: add Button / Label / Panel, Delete, Properties, Done buttons
+  - Double-click element to open property editor; Delete key removes selected element
+  - Layout auto-saves when exiting edit mode; auto-loads on startup if file exists
 
 ## [0.1.0] - 2026-03-01
 - Project scaffold: initial commit

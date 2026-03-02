@@ -6,6 +6,7 @@
 
 #include "PosClient.h"
 #include "layout/LayoutEngine.h"
+#include "editor/EditorOverlay.h"
 
 #include <QGraphicsScene>
 #include <QGraphicsView>
@@ -22,12 +23,24 @@ public:
     /// Access the layout engine for runtime page/element manipulation.
     LayoutEngine *layoutEngine() { return m_engine; }
 
+    /// Access the editor overlay.
+    EditorOverlay *editorOverlay() { return m_editor; }
+
 protected:
     void resizeEvent(QResizeEvent *event) override;
     void showEvent(QShowEvent *event) override;
+    void keyPressEvent(QKeyEvent *event) override;
 
 private:
     void buildTestPage();
+    void toggleEditMode();
+    void openPropertyDialog(UiElement *elem);
+
+    /// Try to load layout from the default file path; returns true on success.
+    bool loadLayoutIfExists();
+
+    /// Default layout file path (next to the executable or in config dir).
+    QString defaultLayoutPath() const;
 
     // Design resolution — all scene items are placed in this coordinate space.
     static constexpr qreal kDesignW = 1920.0;
@@ -36,6 +49,7 @@ private:
     QGraphicsView  *m_view   = nullptr;
     QGraphicsScene *m_scene  = nullptr;
     LayoutEngine   *m_engine = nullptr;
+    EditorOverlay  *m_editor = nullptr;
     PosClient      *m_client = nullptr;
     QString         m_lastPressedButtonId;
 };

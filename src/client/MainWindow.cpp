@@ -2,10 +2,17 @@
 // src/client/MainWindow.cpp
 
 #include "MainWindow.h"
+#include "editor/PropertyDialog.h"
+#include "editor/LayoutSerializer.h"
 
+#include <QCoreApplication>
+#include <QDir>
+#include <QKeyEvent>
+#include <QMessageBox>
 #include <QResizeEvent>
 #include <QScreen>
 #include <QShowEvent>
+#include <QStandardPaths>
 #include <QTimer>
 
 namespace vt {
@@ -52,7 +59,21 @@ MainWindow::MainWindow(PosClient *client, QWidget *parent)
         m_lastPressedButtonId.clear();
     });
 
-    buildTestPage();
+    // ── Editor overlay ──────────────────────────────────────────────────
+    m_editor = new EditorOverlay(m_engine, m_scene, this);
+    connect(m_editor, &EditorOverlay::editPropertiesRequested, this,
+            &MainWindow::openPropertyDialog);
+    connect(m_editor, &EditorOverlay::editModeChanged, this, [this](bool on) {
+        if (!on) {
+            // Auto-save layout when exiting edit mode
+            QString path = defaultLayoutPath();
+            LayoutSerializer::saveToFile(m_engine, path);
+        }
+    });
+
+    // ── Load layout or build default ────────────────────────────────────
+    if (!loadLayoutIfExists())
+        buildTestPage();
 
     // ── Fullscreen ──────────────────────────────────────────────────────
     setWindowFlags(Qt::Window | Qt::FramelessWindowHint);
@@ -83,6 +104,63 @@ void MainWindow::showEvent(QShowEvent *event)
 
     QTimer::singleShot(100, this, applyFullscreen);
     QTimer::singleShot(500, this, applyFullscreen);
+}
+
+void MainWindow::keyPressEvent(QKeyEvent *event)
+{
+    switch (event->key()) {
+    case Qt::Key_F2:
+        toggleEditMode();
+        return;
+    case Qt::Key_Escape:
+        if (m_editor->isEditMode()) {
+            m_editor->setEditMode(false);
+            return;
+        }
+        break;
+    case Qt::Key_Delete:
+        if (m_editor->isEditMode()) {
+            m_editor->deleteSelected();
+            return;
+        }
+        break;
+    }
+    QMainWindow::keyPressEvent(event);
+}
+
+// ── Edit mode ───────────────────────────────────────────────────────────────
+
+void MainWindow::toggleEditMode()
+{
+    m_editor->setEditMode(!m_editor->isEditMode());
+}
+
+void MainWindow::openPropertyDialog(UiElement *elem)
+{
+    PropertyDialog dlg(elem, this);
+    if (dlg.exec() == QDialog::Accepted) {
+        m_editor->deselectAll();
+        m_editor->selectElement(elem);  // refresh handles after resize
+    }
+}
+
+// ── Layout persistence ──────────────────────────────────────────────────────
+
+QString MainWindow::defaultLayoutPath() const
+{
+    // Store layout in config directory: ~/.config/ViewTouchQt/layout.json
+    QString dir = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
+    QDir().mkpath(dir);
+    return dir + QStringLiteral("/layout.json");
+}
+
+bool MainWindow::loadLayoutIfExists()
+{
+    QString path = defaultLayoutPath();
+    if (!QFile::exists(path))
+        return false;
+
+    return LayoutSerializer::loadFromFile(m_engine, path);
 }
 
 // ── Test page ───────────────────────────────────────────────────────────────
@@ -130,6 +208,13 @@ void MainWindow::buildTestPage()
     status->setFontSize(22);
     status->setTextColor(QColor(150, 255, 150));
     status->setAlignment(Qt::AlignLeft);
+
+    // Edit hint
+    auto *hint = pg->addLabel(QStringLiteral("edit_hint"), 1400, 1020, 500, 40,
+                              QStringLiteral("Press F2 to edit layout"));
+    hint->setFontSize(18);
+    hint->setTextColor(QColor(120, 120, 120));
+    hint->setAlignment(Qt::AlignRight);
 
     m_engine->showPage(QStringLiteral("test"));
 }
