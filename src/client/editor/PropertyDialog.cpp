@@ -52,6 +52,7 @@ void PropertyDialog::setupUi()
     m_typeCombo->addItem(QStringLiteral("PIN Entry"),     static_cast<int>(ElementType::PinEntry));
     m_typeCombo->addItem(QStringLiteral("Keypad Button"), static_cast<int>(ElementType::KeypadButton));
     m_typeCombo->addItem(QStringLiteral("Action Button"), static_cast<int>(ElementType::ActionButton));
+    m_typeCombo->addItem(QStringLiteral("Info Label"),    static_cast<int>(ElementType::InfoLabel));
     m_typeCombo->setCurrentIndex(static_cast<int>(m_element->elementType()));
     connect(m_typeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &PropertyDialog::onTypeChanged);
@@ -211,7 +212,6 @@ void PropertyDialog::setupUi()
         m_actionTypeCombo->addItem(QStringLiteral("Toggle Display"), static_cast<int>(ActionType::ToggleDisplay));
         m_actionTypeCombo->addItem(QStringLiteral("Test Printer"), static_cast<int>(ActionType::TestPrinter));
         m_actionTypeCombo->addItem(QStringLiteral("Display Done"), static_cast<int>(ActionType::DisplayDone));
-        m_actionTypeCombo->addItem(QStringLiteral("Show Version"), static_cast<int>(ActionType::ShowVersion));
 
         m_navTargetCombo = new QComboBox;
         m_navTargetCombo->setToolTip(QStringLiteral("Target page for Navigation action."));

@@ -10,7 +10,6 @@
 #include "layout/ActionButtonElement.h"
 #include "displays/DisplayManager.h"
 #include "printing/CupsPrinter.h"
-#include "Version.h"
 
 #include <QCoreApplication>
 #include <QDir>
@@ -211,6 +210,10 @@ void MainWindow::openPropertyDialog(UiElement *elem)
         if (dlg.typeChanged()) {
             auto *page = m_engine->activePage();
             if (page) {
+                // Deselect BEFORE replacing to avoid use-after-free on
+                // decoration items that are children of the old element.
+                m_editor->deselectAll();
+
                 auto *replacement = page->replaceElementType(
                     elem->elementId(), dlg.newType());
                 if (replacement) {
@@ -622,29 +625,6 @@ void MainWindow::handleAction(const QString &pageName, ActionType action, const 
     case ActionType::DisplayDone:
         handleDisplayDone();
         break;
-    case ActionType::ShowVersion: {
-        QString ver = QStringLiteral("ViewTouchQt  v%1   build %2   %3")
-            .arg(QStringLiteral(VT_VERSION_STRING),
-                 QStringLiteral(VT_GIT_HASH),
-                 QStringLiteral(VT_BUILD_DATE));
-        // Show on page's status label, or any label with id ending in _status
-        bool shown = false;
-        if (auto *s = pg->element(QStringLiteral("login_status"))) {
-            s->setLabel(ver); shown = true;
-        }
-        if (auto *s = pg->element(QStringLiteral("disp_status"))) {
-            s->setLabel(ver); shown = true;
-        }
-        if (!shown) {
-            // Fallback: find any label with "_status" suffix
-            for (auto *elem : pg->elements()) {
-                if (elem->elementId().endsWith(QStringLiteral("_status"))) {
-                    elem->setLabel(ver); break;
-                }
-            }
-        }
-        break;
-    }
     }
 }
 

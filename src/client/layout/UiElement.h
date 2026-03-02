@@ -20,6 +20,7 @@ enum class ElementType {
     PinEntry,
     KeypadButton,
     ActionButton,
+    InfoLabel,
 };
 
 /// Base class for every visual element placed on a PageWidget.

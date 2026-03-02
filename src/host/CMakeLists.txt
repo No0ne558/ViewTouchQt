@@ -23,6 +23,7 @@ target_sources(vt_host PRIVATE
     ${CMAKE_SOURCE_DIR}/src/client/layout/PinEntryElement.cpp
     ${CMAKE_SOURCE_DIR}/src/client/layout/KeypadButtonElement.cpp
     ${CMAKE_SOURCE_DIR}/src/client/layout/ActionButtonElement.cpp
+    ${CMAKE_SOURCE_DIR}/src/client/layout/InfoLabelElement.cpp
     ${CMAKE_SOURCE_DIR}/src/client/layout/PageWidget.cpp
     ${CMAKE_SOURCE_DIR}/src/client/layout/LayoutEngine.cpp
     # Editor sources

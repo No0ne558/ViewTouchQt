@@ -114,6 +114,19 @@ ActionButtonElement *PageWidget::addActionButton(const QString &id, qreal x, qre
     return act;
 }
 
+InfoLabelElement *PageWidget::addInfoLabel(const QString &id, qreal x, qreal y,
+                                            qreal w, qreal h)
+{
+    if (m_elements.contains(id)) {
+        qWarning() << "[layout] Duplicate element id:" << id << "on page" << m_name;
+        return nullptr;
+    }
+
+    auto *info = new InfoLabelElement(id, x, y, w, h);
+    registerElement(info);
+    return info;
+}
+
 // ── Remove ──────────────────────────────────────────────────────────────────
 
 bool PageWidget::removeElement(const QString &id)
@@ -194,6 +207,12 @@ UiElement *PageWidget::replaceElementType(const QString &id, ElementType newType
     case ElementType::ActionButton: {
         auto *act = addActionButton(id, x, y, w, h, label, ActionType::Login);
         created = act;
+        break;
+    }
+    case ElementType::InfoLabel: {
+        auto *info = addInfoLabel(id, x, y, w, h);
+        if (info) info->setLabel(label);
+        created = info;
         break;
     }
     }

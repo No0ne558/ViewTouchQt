@@ -8,6 +8,7 @@
 #include "../layout/PinEntryElement.h"
 #include "../layout/KeypadButtonElement.h"
 #include "../layout/ActionButtonElement.h"
+#include "../layout/InfoLabelElement.h"
 
 #include <QDebug>
 #include <QFile>
@@ -104,6 +105,7 @@ QJsonObject LayoutSerializer::serializeElement(const UiElement *elem)
     case ElementType::PinEntry:     obj[QStringLiteral("type")] = QStringLiteral("pinEntry"); break;
     case ElementType::KeypadButton: obj[QStringLiteral("type")] = QStringLiteral("keypadButton"); break;
     case ElementType::ActionButton: obj[QStringLiteral("type")] = QStringLiteral("actionButton"); break;
+    case ElementType::InfoLabel:    obj[QStringLiteral("type")] = QStringLiteral("infoLabel"); break;
     }
 
     obj[QStringLiteral("x")] = elem->pos().x();
@@ -311,6 +313,17 @@ bool LayoutSerializer::deserializeElement(PageWidget *page, const QJsonObject &o
             act->setTargetPage(obj[QStringLiteral("targetPage")].toString());
         if (obj.contains(QStringLiteral("activeColor")))
             act->setActiveColor(QColor(obj[QStringLiteral("activeColor")].toString()));
+    } else if (type == QStringLiteral("infoLabel")) {
+        auto *info = page->addInfoLabel(id, x, y, w, h);
+        if (!info) return false;
+        info->setBgColor(bgColor);
+        info->setTextColor(textColor);
+        info->setFontSize(fontSize);
+        info->setFontFamily(fontFamily);
+        info->setFontBold(fontBold);
+        info->setCornerRadius(cornerRadius);
+        info->setInheritable(inheritable);
+        // Label text is auto-generated; ignore stored label.
     } else {
         qWarning() << "[serializer] Unknown element type:" << type;
         return false;

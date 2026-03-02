@@ -10,6 +10,7 @@
 #include "PinEntryElement.h"
 #include "KeypadButtonElement.h"
 #include "ActionButtonElement.h"
+#include "InfoLabelElement.h"
 
 #include <QGraphicsScene>
 #include <QHash>
@@ -65,6 +66,10 @@ public:
     ActionButtonElement *addActionButton(const QString &id, qreal x, qreal y,
                                          qreal w, qreal h, const QString &label,
                                          ActionType action);
+
+    /// Create and add an info label (auto-shows version info).
+    InfoLabelElement *addInfoLabel(const QString &id, qreal x, qreal y,
+                                   qreal w, qreal h);
 
     /// Remove an element by id.  Returns true if found.
     bool removeElement(const QString &id);
