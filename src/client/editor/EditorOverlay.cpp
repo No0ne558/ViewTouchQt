@@ -519,26 +519,27 @@ bool EditorOverlay::eventFilter(QObject *watched, QEvent *event)
             return true;
         }
 
-        // W / H resize only works for single selection
-        if (m_selection.size() == 1) {
-            auto *sel = m_selection.first();
+        // W / H resize all selected elements
+        {
             constexpr qreal kResizeStep = 10.0;
             constexpr qreal kMinSize    = 40.0;
             bool shrink = (ke->modifiers() & Qt::ShiftModifier);
             if (ke->key() == Qt::Key_W) {
-                qreal newW = sel->elementW() + (shrink ? -kResizeStep : kResizeStep);
-                if (newW >= kMinSize) {
-                    sel->resizeTo(newW, sel->elementH());
-                    updateHandles();
+                for (auto *sel : m_selection) {
+                    qreal newW = sel->elementW() + (shrink ? -kResizeStep : kResizeStep);
+                    if (newW >= kMinSize)
+                        sel->resizeTo(newW, sel->elementH());
                 }
+                updateHandles();
                 return true;
             }
             if (ke->key() == Qt::Key_H) {
-                qreal newH = sel->elementH() + (shrink ? -kResizeStep : kResizeStep);
-                if (newH >= kMinSize) {
-                    sel->resizeTo(sel->elementW(), newH);
-                    updateHandles();
+                for (auto *sel : m_selection) {
+                    qreal newH = sel->elementH() + (shrink ? -kResizeStep : kResizeStep);
+                    if (newH >= kMinSize)
+                        sel->resizeTo(sel->elementW(), newH);
                 }
+                updateHandles();
                 return true;
             }
         }
