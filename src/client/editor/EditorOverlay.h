@@ -9,6 +9,7 @@
 
 #include <QGraphicsObject>
 #include <QGraphicsRectItem>
+#include <QGraphicsItemGroup>
 #include <QGraphicsSceneMouseEvent>
 #include <QGraphicsProxyWidget>
 #include <QToolBar>
@@ -43,6 +44,24 @@ private:
     QRectF   m_startRect;
     QPointF  m_startScenePos;
     static constexpr qreal kHandleSize = 14.0;
+};
+
+/// A small grip area that lets the user drag the floating toolbar around.
+class ToolbarDragHandle : public QGraphicsRectItem {
+public:
+    explicit ToolbarDragHandle(qreal w, qreal h, QGraphicsItem *parent = nullptr);
+
+    void paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
+               QWidget *widget) override;
+
+protected:
+    void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
+    void mouseMoveEvent(QGraphicsSceneMouseEvent *event) override;
+    void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
+
+private:
+    QPointF m_dragStart;
+    QPointF m_posStart;
 };
 
 /// The EditorOverlay manages the visual editing state.
@@ -118,9 +137,11 @@ private:
     QPointF m_dragStartScene;
     QPointF m_dragStartPos;
 
-    // Toolbar
+    // Toolbar (movable container: invisible rect → drag handle + toolbar proxy)
+    QGraphicsRectItem    *m_toolbarGroup = nullptr;
     QGraphicsProxyWidget *m_toolbarProxy = nullptr;
     QToolBar             *m_toolbar      = nullptr;
+    ToolbarDragHandle    *m_dragHandle   = nullptr;
 
     int m_nextId = 1;  // auto-increment for new element IDs
 };

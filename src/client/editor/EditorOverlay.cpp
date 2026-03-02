@@ -303,10 +303,14 @@ bool EditorOverlay::eventFilter(QObject *watched, QEvent *event)
             return false;  // let handle process
         }
 
-        // Check if click is on the toolbar proxy
+        // Check if click is on the toolbar proxy or drag handle
         if (m_toolbarProxy && m_toolbarProxy->contains(
                 m_toolbarProxy->mapFromScene(me->scenePos()))) {
             return false;  // let toolbar process
+        }
+        if (m_dragHandle && m_dragHandle->contains(
+                m_dragHandle->mapFromScene(me->scenePos()))) {
+            return false;  // let drag handle process
         }
 
         // Check if we clicked on an element
@@ -421,11 +425,63 @@ void EditorOverlay::hideHandles()
     m_handles.clear();
 }
 
+// ═════════════════════════════════════════════════════════════════════════════
+// ToolbarDragHandle
+// ═════════════════════════════════════════════════════════════════════════════
+
+ToolbarDragHandle::ToolbarDragHandle(qreal w, qreal h, QGraphicsItem *parent)
+    : QGraphicsRectItem(0, 0, w, h, parent)
+{
+    setBrush(Qt::NoBrush);
+    setPen(Qt::NoPen);
+    setCursor(Qt::OpenHandCursor);
+    setAcceptedMouseButtons(Qt::LeftButton);
+    setFlag(QGraphicsItem::ItemIsSelectable, false);
+}
+
+void ToolbarDragHandle::paint(QPainter *painter,
+                              const QStyleOptionGraphicsItem * /*option*/,
+                              QWidget * /*widget*/)
+{
+    // Draw 3 horizontal grip lines to hint "drag me"
+    painter->setRenderHint(QPainter::Antialiasing, false);
+    QPen pen(QColor(140, 140, 140), 1.5);
+    painter->setPen(pen);
+
+    qreal cx = rect().center().x();
+    qreal cy = rect().center().y();
+    for (int i = -1; i <= 1; ++i) {
+        qreal y = cy + i * 5;
+        painter->drawLine(QPointF(cx - 8, y), QPointF(cx + 8, y));
+    }
+}
+
+void ToolbarDragHandle::mousePressEvent(QGraphicsSceneMouseEvent *event)
+{
+    m_dragStart = event->scenePos();
+    m_posStart  = parentItem()->pos();
+    setCursor(Qt::ClosedHandCursor);
+    event->accept();
+}
+
+void ToolbarDragHandle::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
+{
+    QPointF delta = event->scenePos() - m_dragStart;
+    parentItem()->setPos(m_posStart + delta);
+    event->accept();
+}
+
+void ToolbarDragHandle::mouseReleaseEvent(QGraphicsSceneMouseEvent *event)
+{
+    setCursor(Qt::OpenHandCursor);
+    event->accept();
+}
+
 // ── Toolbar ─────────────────────────────────────────────────────────────────
 
 void EditorOverlay::showToolbar()
 {
-    if (m_toolbarProxy) return;
+    if (m_toolbarGroup) return;
 
     m_toolbar = new QToolBar;
     m_toolbar->setIconSize(QSize(32, 32));
@@ -461,24 +517,52 @@ void EditorOverlay::showToolbar()
             emit editPropertiesRequested(m_selected);
     });
     connect(actDone, &QAction::triggered, this, [this]() {
-        // Defer to avoid deleting the toolbar (and proxy) while its
-        // click event is still being processed — prevents crash.
         QTimer::singleShot(0, this, [this]() { setEditMode(false); });
     });
 
+    // ── Build a movable container ───────────────────────────────────────
+    // Container item that holds both the drag handle and the toolbar proxy.
+    // We don't use QGraphicsItemGroup because it merges child shapes;
+    // instead we use a plain QGraphicsRectItem as an invisible parent.
+    constexpr qreal kHandleW = 30.0;
+    QSizeF tbSize = m_toolbar->sizeHint();
+
+    // Invisible parent rect that covers drag handle + toolbar
+    auto *container = new QGraphicsRectItem(0, 0,
+                                            kHandleW + tbSize.width(),
+                                            tbSize.height());
+    container->setBrush(Qt::NoBrush);
+    container->setPen(Qt::NoPen);
+    container->setZValue(20000);
+
+    // Drag handle on the left
+    m_dragHandle = new ToolbarDragHandle(kHandleW, tbSize.height(), container);
+    m_dragHandle->setPos(0, 0);
+    m_dragHandle->setZValue(20001);
+
+    // Toolbar proxy as child, offset to the right of the grip
     m_toolbarProxy = m_scene->addWidget(m_toolbar);
-    m_toolbarProxy->setZValue(20000);
-    // Position at top-center of the 1920×1080 design canvas
-    m_toolbarProxy->setPos(960 - m_toolbar->sizeHint().width() / 2.0, 10);
+    m_toolbarProxy->setParentItem(container);
+    m_toolbarProxy->setPos(kHandleW, 0);
+    m_toolbarProxy->setZValue(20001);
+
+    // Add container to scene, position at top-center
+    m_scene->addItem(container);
+    m_toolbarGroup = qgraphicsitem_cast<QGraphicsRectItem *>(container);
+
+    qreal totalW = kHandleW + tbSize.width();
+    container->setPos(960 - totalW / 2.0, 10);
 }
 
 void EditorOverlay::hideToolbar()
 {
-    if (m_toolbarProxy) {
-        m_scene->removeItem(m_toolbarProxy);
-        delete m_toolbarProxy;
+    if (m_toolbarGroup) {
+        m_scene->removeItem(m_toolbarGroup);
+        delete m_toolbarGroup;   // deletes children (drag handle + proxy + toolbar)
+        m_toolbarGroup = nullptr;
         m_toolbarProxy = nullptr;
-        m_toolbar = nullptr;  // deleted with proxy
+        m_toolbar      = nullptr;
+        m_dragHandle   = nullptr;
     }
 }
 
