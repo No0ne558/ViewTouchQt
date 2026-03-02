@@ -5,6 +5,9 @@
 #include "editor/PropertyDialog.h"
 #include "editor/LayoutSerializer.h"
 #include "editor/PageManagerDialog.h"
+#include "layout/PinEntryElement.h"
+#include "layout/KeypadButtonElement.h"
+#include "layout/ActionButtonElement.h"
 
 #include <QCoreApplication>
 #include <QDir>
@@ -60,6 +63,17 @@ MainWindow::MainWindow(PosClient *client, QWidget *parent)
         m_lastPressedButtonId.clear();
     });
 
+    // Keypad button presses → route to PinEntry on the same page
+    connect(m_engine, &LayoutEngine::keypadPressed, this,
+            [this](const QString &pageName, const QString &value) {
+                wirePageKeypad(pageName);
+                Q_UNUSED(value); // actual wiring is page-local, see wirePageKeypad
+            });
+
+    // Action button presses → navigation
+    connect(m_engine, &LayoutEngine::actionTriggered, this,
+            &MainWindow::handleAction);
+
     // ── Editor overlay ──────────────────────────────────────────────────
     m_editor = new EditorOverlay(m_engine, m_scene, this);
     connect(m_editor, &EditorOverlay::editPropertiesRequested, this,
@@ -77,6 +91,9 @@ MainWindow::MainWindow(PosClient *client, QWidget *parent)
     // ── Load layout or build default ────────────────────────────────────
     if (!loadLayoutIfExists())
         buildTestPage();
+
+    // Ensure system pages always exist (Login, Tables, Order).
+    ensureSystemPages();
 
     // ── Fullscreen ──────────────────────────────────────────────────────
     setWindowFlags(Qt::Window | Qt::FramelessWindowHint);
@@ -230,6 +247,256 @@ void MainWindow::buildTestPage()
     hint->setAlignment(Qt::AlignRight);
 
     m_engine->showPage(QStringLiteral("test"));
+}
+
+// ── System pages ────────────────────────────────────────────────────────────
+
+void MainWindow::ensureSystemPages()
+{
+    // Create system pages if they don't already exist (e.g., after first run
+    // or if layout.json doesn't include them).
+    if (!m_engine->page(QStringLiteral("Login"))) {
+        buildDefaultLoginPage();
+    } else {
+        // Mark existing Login page as system
+        m_engine->page(QStringLiteral("Login"))->setSystemPage(true);
+    }
+
+    if (!m_engine->page(QStringLiteral("Tables"))) {
+        auto *pg = m_engine->createPage(QStringLiteral("Tables"));
+        pg->setSystemPage(true);
+        // Minimal placeholder content
+        auto *title = pg->addLabel(QStringLiteral("tables_title"), 20, 10, 600, 60,
+                                    QStringLiteral("Tables"));
+        title->setFontSize(36);
+        title->setTextColor(Qt::white);
+        title->setAlignment(Qt::AlignLeft);
+
+        auto *hint = pg->addLabel(QStringLiteral("tables_hint"), 560, 500, 800, 60,
+                                   QStringLiteral("Configure this page in the editor (F2)"));
+        hint->setFontSize(20);
+        hint->setTextColor(QColor(120, 120, 120));
+    } else {
+        m_engine->page(QStringLiteral("Tables"))->setSystemPage(true);
+    }
+
+    if (!m_engine->page(QStringLiteral("Order"))) {
+        auto *pg = m_engine->createPage(QStringLiteral("Order"));
+        pg->setSystemPage(true);
+        auto *title = pg->addLabel(QStringLiteral("order_title"), 20, 10, 600, 60,
+                                    QStringLiteral("Order"));
+        title->setFontSize(36);
+        title->setTextColor(Qt::white);
+        title->setAlignment(Qt::AlignLeft);
+
+        auto *hint = pg->addLabel(QStringLiteral("order_hint"), 560, 500, 800, 60,
+                                   QStringLiteral("Configure this page in the editor (F2)"));
+        hint->setFontSize(20);
+        hint->setTextColor(QColor(120, 120, 120));
+    } else {
+        m_engine->page(QStringLiteral("Order"))->setSystemPage(true);
+    }
+
+    // Wire up local keypad → PIN entry connections for all pages
+    for (const QString &name : m_engine->pageNames()) {
+        wirePageKeypad(name);
+    }
+
+    // Show Login page as the startup page (unless already showing a page)
+    if (!m_engine->activePage() || m_engine->activePageName() == QStringLiteral("test")) {
+        m_engine->showPage(QStringLiteral("Login"));
+    }
+}
+
+void MainWindow::buildDefaultLoginPage()
+{
+    auto *pg = m_engine->createPage(QStringLiteral("Login"));
+    pg->setSystemPage(true);
+
+    // ── Background panel ────────────────────────────────────────────────
+    auto *bg = pg->addPanel(QStringLiteral("login_bg"), 0, 0, 1920, 1080);
+    bg->setBgColor(QColor(25, 25, 30));
+    bg->setCornerRadius(0);
+
+    // ── Title ───────────────────────────────────────────────────────────
+    auto *title = pg->addLabel(QStringLiteral("login_title"), 610, 80, 700, 70,
+                                QStringLiteral("ViewTouchQt POS"));
+    title->setFontSize(42);
+    title->setTextColor(Qt::white);
+
+    auto *subtitle = pg->addLabel(QStringLiteral("login_subtitle"), 710, 160, 500, 40,
+                                   QStringLiteral("Enter your PIN to begin"));
+    subtitle->setFontSize(20);
+    subtitle->setTextColor(QColor(150, 150, 150));
+
+    // ── PIN Entry field ─────────────────────────────────────────────────
+    auto *pin = pg->addPinEntry(QStringLiteral("login_pin"), 710, 230, 500, 70);
+    pin->setLabel(QStringLiteral("Enter PIN"));
+    pin->setFontSize(32);
+    pin->setMaxLength(8);
+
+    // ── Keypad (3×4 grid + bottom row) ──────────────────────────────────
+    constexpr qreal kpadX = 710;
+    constexpr qreal kpadY = 320;
+    constexpr qreal btnW  = 150;
+    constexpr qreal btnH  = 80;
+    constexpr qreal gap   = 10;
+
+    const QString digits[] = {
+        QStringLiteral("1"), QStringLiteral("2"), QStringLiteral("3"),
+        QStringLiteral("4"), QStringLiteral("5"), QStringLiteral("6"),
+        QStringLiteral("7"), QStringLiteral("8"), QStringLiteral("9"),
+    };
+
+    for (int i = 0; i < 9; ++i) {
+        int row = i / 3;
+        int col = i % 3;
+        qreal x = kpadX + col * (btnW + gap);
+        qreal y = kpadY + row * (btnH + gap);
+        QString id = QStringLiteral("kpd_%1").arg(digits[i]);
+        auto *k = pg->addKeypadButton(id, x, y, btnW, btnH, digits[i]);
+        k->setBgColor(QColor(55, 55, 60));
+    }
+
+    // Bottom row: Clear, 0, Back
+    qreal bottomY = kpadY + 3 * (btnH + gap);
+    auto *kClear = pg->addKeypadButton(QStringLiteral("kpd_clear"),
+                                       kpadX, bottomY, btnW, btnH,
+                                       QStringLiteral("Clear"));
+    kClear->setKeyValue(QStringLiteral("CLEAR"));
+    kClear->setBgColor(QColor(80, 40, 40));
+    kClear->setFontSize(20);
+
+    auto *k0 = pg->addKeypadButton(QStringLiteral("kpd_0"),
+                                   kpadX + (btnW + gap), bottomY, btnW, btnH,
+                                   QStringLiteral("0"));
+    k0->setBgColor(QColor(55, 55, 60));
+
+    auto *kBack = pg->addKeypadButton(QStringLiteral("kpd_back"),
+                                      kpadX + 2 * (btnW + gap), bottomY, btnW, btnH,
+                                      QStringLiteral("←"));
+    kBack->setKeyValue(QStringLiteral("BACK"));
+    kBack->setBgColor(QColor(70, 60, 40));
+    kBack->setFontSize(24);
+
+    // ── Action buttons ──────────────────────────────────────────────────
+    qreal actY = bottomY + btnH + 30;
+    qreal actW = (3 * btnW + 2 * gap) / 3.0;
+
+    auto *btnLogin = pg->addActionButton(QStringLiteral("act_login"),
+                                         kpadX, actY, actW, 70,
+                                         QStringLiteral("Login"),
+                                         ActionType::Login);
+    btnLogin->setBgColor(QColor(0, 120, 215));
+    btnLogin->setFontSize(24);
+
+    auto *btnDineIn = pg->addActionButton(QStringLiteral("act_dinein"),
+                                          kpadX + actW + gap, actY, actW, 70,
+                                          QStringLiteral("Dine-In"),
+                                          ActionType::DineIn);
+    btnDineIn->setBgColor(QColor(40, 140, 80));
+    btnDineIn->setFontSize(24);
+
+    auto *btnToGo = pg->addActionButton(QStringLiteral("act_togo"),
+                                        kpadX + 2 * (actW + gap), actY, actW, 70,
+                                        QStringLiteral("To-Go"),
+                                        ActionType::ToGo);
+    btnToGo->setBgColor(QColor(180, 100, 30));
+    btnToGo->setFontSize(24);
+
+    // ── Status label ────────────────────────────────────────────────────
+    auto *status = pg->addLabel(QStringLiteral("login_status"), 710, actY + 90, 500, 40,
+                                 QStringLiteral(""));
+    status->setFontSize(18);
+    status->setTextColor(QColor(255, 100, 100));
+
+    // ── Edit hint ───────────────────────────────────────────────────────
+    auto *hint = pg->addLabel(QStringLiteral("login_hint"), 1400, 1030, 500, 40,
+                               QStringLiteral("Press F2 to edit layout"));
+    hint->setFontSize(16);
+    hint->setTextColor(QColor(80, 80, 80));
+    hint->setAlignment(Qt::AlignRight);
+}
+
+void MainWindow::wirePageKeypad(const QString &pageName)
+{
+    auto *pg = m_engine->page(pageName);
+    if (!pg) return;
+
+    // Find the PinEntry element on this page
+    PinEntryElement *pinEntry = nullptr;
+    for (UiElement *elem : pg->elements()) {
+        if (elem->elementType() == ElementType::PinEntry) {
+            pinEntry = static_cast<PinEntryElement *>(elem);
+            break;
+        }
+    }
+    if (!pinEntry) return;
+
+    // Connect each KeypadButton to the PinEntry
+    for (UiElement *elem : pg->elements()) {
+        if (elem->elementType() == ElementType::KeypadButton) {
+            auto *kpd = static_cast<KeypadButtonElement *>(elem);
+            // Disconnect any previous connection to avoid duplicates
+            disconnect(kpd, &KeypadButtonElement::keyPressed, nullptr, nullptr);
+            // Reconnect to this page's keypadPressed signal (which we now handle directly)
+            connect(kpd, &KeypadButtonElement::keyPressed, pinEntry,
+                    [pinEntry](const QString &value) {
+                        if (value == QStringLiteral("BACK")) {
+                            pinEntry->backspace();
+                        } else if (value == QStringLiteral("CLEAR")) {
+                            pinEntry->clearPin();
+                        } else {
+                            for (QChar ch : value)
+                                pinEntry->appendChar(ch);
+                        }
+                    });
+        }
+    }
+}
+
+void MainWindow::handleAction(const QString &pageName, ActionType action)
+{
+    // Find the PinEntry on the source page to validate
+    auto *pg = m_engine->page(pageName);
+    if (!pg) return;
+
+    PinEntryElement *pinEntry = nullptr;
+    for (UiElement *elem : pg->elements()) {
+        if (elem->elementType() == ElementType::PinEntry) {
+            pinEntry = static_cast<PinEntryElement *>(elem);
+            break;
+        }
+    }
+
+    // If there's a PinEntry on this page, require a non-empty PIN
+    if (pinEntry && pinEntry->pinText().isEmpty()) {
+        // Show feedback: find the status label
+        if (auto *statusElem = pg->element(QStringLiteral("login_status"))) {
+            statusElem->setLabel(QStringLiteral("Please enter your PIN first"));
+        }
+        return;
+    }
+
+    // Clear the status message
+    if (auto *statusElem = pg->element(QStringLiteral("login_status"))) {
+        statusElem->setLabel(QString());
+    }
+
+    // Clear the PIN for next login
+    if (pinEntry)
+        pinEntry->clearPin();
+
+    // Navigate based on action type
+    switch (action) {
+    case ActionType::Login:
+        m_engine->showPage(QStringLiteral("Tables"));
+        break;
+    case ActionType::DineIn:
+    case ActionType::ToGo:
+        m_engine->showPage(QStringLiteral("Order"));
+        break;
+    }
 }
 
 } // namespace vt

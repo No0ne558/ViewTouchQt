@@ -9,6 +9,9 @@ add_executable(vt_client
     layout/ButtonElement.cpp
     layout/LabelElement.cpp
     layout/PanelElement.cpp
+    layout/PinEntryElement.cpp
+    layout/KeypadButtonElement.cpp
+    layout/ActionButtonElement.cpp
     layout/PageWidget.cpp
     layout/LayoutEngine.cpp
     editor/EditorOverlay.cpp

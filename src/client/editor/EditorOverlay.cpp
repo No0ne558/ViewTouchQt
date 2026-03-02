@@ -5,6 +5,9 @@
 #include "../layout/ButtonElement.h"
 #include "../layout/LabelElement.h"
 #include "../layout/PanelElement.h"
+#include "../layout/PinEntryElement.h"
+#include "../layout/KeypadButtonElement.h"
+#include "../layout/ActionButtonElement.h"
 #include "../layout/PageWidget.h"
 
 #include <QApplication>
@@ -248,9 +251,12 @@ void EditorOverlay::addElement(ElementType type)
     // Generate unique ID
     QString prefix;
     switch (type) {
-    case ElementType::Button: prefix = QStringLiteral("btn_"); break;
-    case ElementType::Label:  prefix = QStringLiteral("lbl_"); break;
-    case ElementType::Panel:  prefix = QStringLiteral("pnl_"); break;
+    case ElementType::Button:       prefix = QStringLiteral("btn_"); break;
+    case ElementType::Label:        prefix = QStringLiteral("lbl_"); break;
+    case ElementType::Panel:        prefix = QStringLiteral("pnl_"); break;
+    case ElementType::PinEntry:     prefix = QStringLiteral("pin_"); break;
+    case ElementType::KeypadButton: prefix = QStringLiteral("kpd_"); break;
+    case ElementType::ActionButton: prefix = QStringLiteral("act_"); break;
     }
 
     QString id;
@@ -283,6 +289,24 @@ void EditorOverlay::addElement(ElementType type)
         auto *pnl = pg->addPanel(id, cx - 100, cy - 50, 200, 100);
         pnl->setBgColor(QColor(60, 60, 60));
         newElem = pnl;
+        break;
+    }
+    case ElementType::PinEntry: {
+        auto *pin = pg->addPinEntry(id, cx - 200, cy - 30, 400, 60);
+        newElem = pin;
+        break;
+    }
+    case ElementType::KeypadButton: {
+        auto *kpd = pg->addKeypadButton(id, cx - 40, cy - 40, 80, 80,
+                                        QStringLiteral("0"));
+        newElem = kpd;
+        break;
+    }
+    case ElementType::ActionButton: {
+        auto *act = pg->addActionButton(id, cx - 120, cy - 30, 240, 60,
+                                        QStringLiteral("Login"),
+                                        ActionType::Login);
+        newElem = act;
         break;
     }
     }
@@ -568,6 +592,10 @@ void EditorOverlay::showToolbar()
     auto *actAddLbl = m_toolbar->addAction(QStringLiteral("+ Label"));
     auto *actAddPnl = m_toolbar->addAction(QStringLiteral("+ Panel"));
     m_toolbar->addSeparator();
+    auto *actAddPin = m_toolbar->addAction(QStringLiteral("+ PIN Entry"));
+    auto *actAddKpd = m_toolbar->addAction(QStringLiteral("+ Keypad"));
+    auto *actAddAct = m_toolbar->addAction(QStringLiteral("+ Action"));
+    m_toolbar->addSeparator();
     auto *actDelete = m_toolbar->addAction(QStringLiteral("Delete"));
     auto *actProps  = m_toolbar->addAction(QStringLiteral("Properties"));
     m_toolbar->addSeparator();
@@ -581,6 +609,12 @@ void EditorOverlay::showToolbar()
             [this]() { addElement(ElementType::Label); });
     connect(actAddPnl, &QAction::triggered, this,
             [this]() { addElement(ElementType::Panel); });
+    connect(actAddPin, &QAction::triggered, this,
+            [this]() { addElement(ElementType::PinEntry); });
+    connect(actAddKpd, &QAction::triggered, this,
+            [this]() { addElement(ElementType::KeypadButton); });
+    connect(actAddAct, &QAction::triggered, this,
+            [this]() { addElement(ElementType::ActionButton); });
     connect(actDelete, &QAction::triggered, this,
             &EditorOverlay::deleteSelected);
     connect(actProps, &QAction::triggered, this, [this]() {

@@ -5,6 +5,9 @@
 #include "../layout/ButtonElement.h"
 #include "../layout/LabelElement.h"
 #include "../layout/PanelElement.h"
+#include "../layout/PinEntryElement.h"
+#include "../layout/KeypadButtonElement.h"
+#include "../layout/ActionButtonElement.h"
 
 #include <QDebug>
 #include <QFile>
@@ -75,8 +78,9 @@ QJsonObject LayoutSerializer::serialize(const LayoutEngine *engine)
         }
 
         QJsonObject pageObj;
-        pageObj[QStringLiteral("name")]     = pageName;
-        pageObj[QStringLiteral("elements")] = elementsArr;
+        pageObj[QStringLiteral("name")]       = pageName;
+        pageObj[QStringLiteral("systemPage")] = pg->isSystemPage();
+        pageObj[QStringLiteral("elements")]   = elementsArr;
         pagesArr.append(pageObj);
     }
 
@@ -92,9 +96,12 @@ QJsonObject LayoutSerializer::serializeElement(const UiElement *elem)
     obj[QStringLiteral("id")] = elem->elementId();
 
     switch (elem->elementType()) {
-    case ElementType::Button: obj[QStringLiteral("type")] = QStringLiteral("button"); break;
-    case ElementType::Label:  obj[QStringLiteral("type")] = QStringLiteral("label"); break;
-    case ElementType::Panel:  obj[QStringLiteral("type")] = QStringLiteral("panel"); break;
+    case ElementType::Button:       obj[QStringLiteral("type")] = QStringLiteral("button"); break;
+    case ElementType::Label:        obj[QStringLiteral("type")] = QStringLiteral("label"); break;
+    case ElementType::Panel:        obj[QStringLiteral("type")] = QStringLiteral("panel"); break;
+    case ElementType::PinEntry:     obj[QStringLiteral("type")] = QStringLiteral("pinEntry"); break;
+    case ElementType::KeypadButton: obj[QStringLiteral("type")] = QStringLiteral("keypadButton"); break;
+    case ElementType::ActionButton: obj[QStringLiteral("type")] = QStringLiteral("actionButton"); break;
     }
 
     obj[QStringLiteral("x")] = elem->pos().x();
@@ -121,6 +128,21 @@ QJsonObject LayoutSerializer::serializeElement(const UiElement *elem)
     if (elem->elementType() == ElementType::Button) {
         auto *btn = static_cast<const ButtonElement *>(elem);
         obj[QStringLiteral("activeColor")] = btn->activeColor().name(QColor::HexArgb);
+    }
+    if (elem->elementType() == ElementType::PinEntry) {
+        auto *pin = static_cast<const PinEntryElement *>(elem);
+        obj[QStringLiteral("masked")]    = pin->masked();
+        obj[QStringLiteral("maxLength")] = pin->maxLength();
+    }
+    if (elem->elementType() == ElementType::KeypadButton) {
+        auto *kpd = static_cast<const KeypadButtonElement *>(elem);
+        obj[QStringLiteral("keyValue")]    = kpd->keyValue();
+        obj[QStringLiteral("activeColor")] = kpd->activeColor().name(QColor::HexArgb);
+    }
+    if (elem->elementType() == ElementType::ActionButton) {
+        auto *act = static_cast<const ActionButtonElement *>(elem);
+        obj[QStringLiteral("actionType")]  = static_cast<int>(act->actionType());
+        obj[QStringLiteral("activeColor")] = act->activeColor().name(QColor::HexArgb);
     }
 
     return obj;
@@ -156,6 +178,9 @@ bool LayoutSerializer::deserialize(LayoutEngine *engine, const QJsonObject &root
 
         PageWidget *pg = engine->createPage(pageName);
         if (!pg) continue;
+
+        // Restore system page flag
+        pg->setSystemPage(pageObj[QStringLiteral("systemPage")].toBool(false));
 
         QJsonArray elemArr = pageObj[QStringLiteral("elements")].toArray();
         for (const QJsonValue &elemVal : elemArr) {
@@ -219,6 +244,39 @@ bool LayoutSerializer::deserializeElement(PageWidget *page, const QJsonObject &o
             pnl->setBorderColor(QColor(obj[QStringLiteral("borderColor")].toString()));
         if (obj.contains(QStringLiteral("borderWidth")))
             pnl->setBorderWidth(obj[QStringLiteral("borderWidth")].toDouble());
+    } else if (type == QStringLiteral("pinEntry")) {
+        auto *pin = page->addPinEntry(id, x, y, w, h);
+        if (!pin) return false;
+        pin->setBgColor(bgColor);
+        pin->setTextColor(textColor);
+        pin->setFontSize(fontSize);
+        pin->setCornerRadius(cornerRadius);
+        pin->setLabel(label);  // placeholder text
+        if (obj.contains(QStringLiteral("masked")))
+            pin->setMasked(obj[QStringLiteral("masked")].toBool(true));
+        if (obj.contains(QStringLiteral("maxLength")))
+            pin->setMaxLength(obj[QStringLiteral("maxLength")].toInt(8));
+    } else if (type == QStringLiteral("keypadButton")) {
+        auto *kpd = page->addKeypadButton(id, x, y, w, h, label);
+        if (!kpd) return false;
+        kpd->setBgColor(bgColor);
+        kpd->setTextColor(textColor);
+        kpd->setFontSize(fontSize);
+        kpd->setCornerRadius(cornerRadius);
+        if (obj.contains(QStringLiteral("keyValue")))
+            kpd->setKeyValue(obj[QStringLiteral("keyValue")].toString());
+        if (obj.contains(QStringLiteral("activeColor")))
+            kpd->setActiveColor(QColor(obj[QStringLiteral("activeColor")].toString()));
+    } else if (type == QStringLiteral("actionButton")) {
+        auto *act = page->addActionButton(id, x, y, w, h, label,
+                        static_cast<ActionType>(obj[QStringLiteral("actionType")].toInt(0)));
+        if (!act) return false;
+        act->setBgColor(bgColor);
+        act->setTextColor(textColor);
+        act->setFontSize(fontSize);
+        act->setCornerRadius(cornerRadius);
+        if (obj.contains(QStringLiteral("activeColor")))
+            act->setActiveColor(QColor(obj[QStringLiteral("activeColor")].toString()));
     } else {
         qWarning() << "[serializer] Unknown element type:" << type;
         return false;

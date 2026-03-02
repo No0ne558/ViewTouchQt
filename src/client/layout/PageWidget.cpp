@@ -65,6 +65,55 @@ PanelElement *PageWidget::addPanel(const QString &id, qreal x, qreal y,
     return pnl;
 }
 
+PinEntryElement *PageWidget::addPinEntry(const QString &id, qreal x, qreal y,
+                                          qreal w, qreal h)
+{
+    if (m_elements.contains(id)) {
+        qWarning() << "[layout] Duplicate element id:" << id << "on page" << m_name;
+        return nullptr;
+    }
+
+    auto *pin = new PinEntryElement(id, x, y, w, h);
+    registerElement(pin);
+    return pin;
+}
+
+KeypadButtonElement *PageWidget::addKeypadButton(const QString &id, qreal x, qreal y,
+                                                  qreal w, qreal h, const QString &label)
+{
+    if (m_elements.contains(id)) {
+        qWarning() << "[layout] Duplicate element id:" << id << "on page" << m_name;
+        return nullptr;
+    }
+
+    auto *kpd = new KeypadButtonElement(id, x, y, w, h);
+    kpd->setLabel(label);
+    registerElement(kpd);
+
+    connect(kpd, &KeypadButtonElement::keyPressed, this, &PageWidget::keypadPressed);
+
+    return kpd;
+}
+
+ActionButtonElement *PageWidget::addActionButton(const QString &id, qreal x, qreal y,
+                                                  qreal w, qreal h, const QString &label,
+                                                  ActionType action)
+{
+    if (m_elements.contains(id)) {
+        qWarning() << "[layout] Duplicate element id:" << id << "on page" << m_name;
+        return nullptr;
+    }
+
+    auto *act = new ActionButtonElement(id, x, y, w, h);
+    act->setLabel(label);
+    act->setActionType(action);
+    registerElement(act);
+
+    connect(act, &ActionButtonElement::actionTriggered, this, &PageWidget::actionTriggered);
+
+    return act;
+}
+
 // ── Remove ──────────────────────────────────────────────────────────────────
 
 bool PageWidget::removeElement(const QString &id)

@@ -7,6 +7,9 @@
 #include "ButtonElement.h"
 #include "LabelElement.h"
 #include "PanelElement.h"
+#include "PinEntryElement.h"
+#include "KeypadButtonElement.h"
+#include "ActionButtonElement.h"
 
 #include <QGraphicsScene>
 #include <QHash>
@@ -26,6 +29,11 @@ public:
     const QString &name() const { return m_name; }
     void setName(const QString &name) { m_name = name; }
 
+    /// Whether this is a system page (Login, Tables, Order, etc.).
+    /// System pages control POS flow and are created automatically.
+    bool isSystemPage() const { return m_systemPage; }
+    void setSystemPage(bool on) { m_systemPage = on; }
+
     // ── Element management ──────────────────────────────────────────────
 
     /// Create and add a button.  Returns a non-owning pointer.
@@ -39,6 +47,19 @@ public:
     /// Create and add a panel.
     PanelElement *addPanel(const QString &id, qreal x, qreal y,
                            qreal w, qreal h);
+
+    /// Create and add a PIN entry field.
+    PinEntryElement *addPinEntry(const QString &id, qreal x, qreal y,
+                                 qreal w, qreal h);
+
+    /// Create and add a keypad button.
+    KeypadButtonElement *addKeypadButton(const QString &id, qreal x, qreal y,
+                                         qreal w, qreal h, const QString &label);
+
+    /// Create and add an action button (Login, Dine-In, To-Go).
+    ActionButtonElement *addActionButton(const QString &id, qreal x, qreal y,
+                                         qreal w, qreal h, const QString &label,
+                                         ActionType action);
 
     /// Remove an element by id.  Returns true if found.
     bool removeElement(const QString &id);
@@ -61,10 +82,17 @@ signals:
     /// Forwarded from any ButtonElement on this page.
     void buttonClicked(const QString &elementId);
 
+    /// Forwarded from any KeypadButtonElement on this page.
+    void keypadPressed(const QString &value);
+
+    /// Forwarded from any ActionButtonElement on this page.
+    void actionTriggered(vt::ActionType action);
+
 private:
     void registerElement(UiElement *elem);
 
     QString m_name;
+    bool    m_systemPage = false;
     QHash<QString, UiElement *> m_elements;
     QGraphicsScene *m_currentScene = nullptr;
 };

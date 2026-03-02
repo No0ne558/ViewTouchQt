@@ -31,6 +31,18 @@ PageWidget *LayoutEngine::createPage(const QString &name)
                 emit buttonClicked(name, elementId);
             });
 
+    // Forward keypad presses.
+    connect(pg, &PageWidget::keypadPressed, this,
+            [this, name](const QString &value) {
+                emit keypadPressed(name, value);
+            });
+
+    // Forward action button triggers.
+    connect(pg, &PageWidget::actionTriggered, this,
+            [this, name](ActionType action) {
+                emit actionTriggered(name, action);
+            });
+
     return pg;
 }
 
@@ -70,11 +82,21 @@ bool LayoutEngine::renamePage(const QString &oldName, const QString &newName)
     pg->setName(newName);
     m_pages.insert(newName, pg);
 
-    // Re-connect button click forwarding with the new name
+    // Re-connect forwarding signals with the new name
     disconnect(pg, &PageWidget::buttonClicked, this, nullptr);
+    disconnect(pg, &PageWidget::keypadPressed, this, nullptr);
+    disconnect(pg, &PageWidget::actionTriggered, this, nullptr);
     connect(pg, &PageWidget::buttonClicked, this,
             [this, newName](const QString &elementId) {
                 emit buttonClicked(newName, elementId);
+            });
+    connect(pg, &PageWidget::keypadPressed, this,
+            [this, newName](const QString &value) {
+                emit keypadPressed(newName, value);
+            });
+    connect(pg, &PageWidget::actionTriggered, this,
+            [this, newName](ActionType action) {
+                emit actionTriggered(newName, action);
             });
 
     if (m_activePage == pg)
@@ -102,6 +124,26 @@ PageWidget *LayoutEngine::page(const QString &name) const
 QStringList LayoutEngine::pageNames() const
 {
     return m_pages.keys();
+}
+
+QStringList LayoutEngine::systemPageNames() const
+{
+    QStringList result;
+    for (auto it = m_pages.cbegin(); it != m_pages.cend(); ++it) {
+        if (it.value()->isSystemPage())
+            result.append(it.key());
+    }
+    return result;
+}
+
+QStringList LayoutEngine::userPageNames() const
+{
+    QStringList result;
+    for (auto it = m_pages.cbegin(); it != m_pages.cend(); ++it) {
+        if (!it.value()->isSystemPage())
+            result.append(it.key());
+    }
+    return result;
 }
 
 // ── Navigation ──────────────────────────────────────────────────────────────

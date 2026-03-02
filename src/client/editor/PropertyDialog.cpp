@@ -2,6 +2,9 @@
 // src/client/editor/PropertyDialog.cpp
 
 #include "PropertyDialog.h"
+#include "../layout/PinEntryElement.h"
+#include "../layout/KeypadButtonElement.h"
+#include "../layout/ActionButtonElement.h"
 
 #include <QColorDialog>
 #include <QFormLayout>
@@ -38,9 +41,12 @@ void PropertyDialog::setupUi()
 
     QString typeStr;
     switch (m_element->elementType()) {
-    case ElementType::Button: typeStr = QStringLiteral("Button"); break;
-    case ElementType::Label:  typeStr = QStringLiteral("Label"); break;
-    case ElementType::Panel:  typeStr = QStringLiteral("Panel"); break;
+    case ElementType::Button:       typeStr = QStringLiteral("Button"); break;
+    case ElementType::Label:        typeStr = QStringLiteral("Label"); break;
+    case ElementType::Panel:        typeStr = QStringLiteral("Panel"); break;
+    case ElementType::PinEntry:     typeStr = QStringLiteral("PIN Entry"); break;
+    case ElementType::KeypadButton: typeStr = QStringLiteral("Keypad Button"); break;
+    case ElementType::ActionButton: typeStr = QStringLiteral("Action Button"); break;
     }
     auto *typeLabel = new QLabel(typeStr);
     idForm->addRow(QStringLiteral("Type:"), typeLabel);
@@ -114,6 +120,55 @@ void PropertyDialog::setupUi()
 
     mainLayout->addWidget(styleGroup);
 
+    // ── Type-specific group ──────────────────────────────────────────────
+    if (m_element->elementType() == ElementType::PinEntry) {
+        auto *pinGroup = new QGroupBox(QStringLiteral("PIN Entry"));
+        auto *pinForm  = new QFormLayout(pinGroup);
+
+        auto *pin = static_cast<PinEntryElement *>(m_element);
+
+        m_maskedCheck = new QCheckBox(QStringLiteral("Mask input (show dots)"));
+        m_maskedCheck->setChecked(pin->masked());
+        pinForm->addRow(m_maskedCheck);
+
+        m_maxLengthBox = new QSpinBox;
+        m_maxLengthBox->setRange(0, 32);
+        m_maxLengthBox->setValue(pin->maxLength());
+        m_maxLengthBox->setSpecialValueText(QStringLiteral("Unlimited"));
+        pinForm->addRow(QStringLiteral("Max length:"), m_maxLengthBox);
+
+        mainLayout->addWidget(pinGroup);
+    }
+
+    if (m_element->elementType() == ElementType::KeypadButton) {
+        auto *kpdGroup = new QGroupBox(QStringLiteral("Keypad Button"));
+        auto *kpdForm  = new QFormLayout(kpdGroup);
+
+        auto *kpd = static_cast<KeypadButtonElement *>(m_element);
+
+        m_keyValueEdit = new QLineEdit(kpd->keyValue());
+        m_keyValueEdit->setPlaceholderText(QStringLiteral("Uses label if empty. BACK or CLEAR for special."));
+        kpdForm->addRow(QStringLiteral("Key value:"), m_keyValueEdit);
+
+        mainLayout->addWidget(kpdGroup);
+    }
+
+    if (m_element->elementType() == ElementType::ActionButton) {
+        auto *actGroup = new QGroupBox(QStringLiteral("Action Button"));
+        auto *actForm  = new QFormLayout(actGroup);
+
+        auto *act = static_cast<ActionButtonElement *>(m_element);
+
+        m_actionTypeCombo = new QComboBox;
+        m_actionTypeCombo->addItem(QStringLiteral("Login (→ Tables)"), static_cast<int>(ActionType::Login));
+        m_actionTypeCombo->addItem(QStringLiteral("Dine-In (→ Order)"), static_cast<int>(ActionType::DineIn));
+        m_actionTypeCombo->addItem(QStringLiteral("To-Go (→ Order)"), static_cast<int>(ActionType::ToGo));
+        m_actionTypeCombo->setCurrentIndex(static_cast<int>(act->actionType()));
+        actForm->addRow(QStringLiteral("Action:"), m_actionTypeCombo);
+
+        mainLayout->addWidget(actGroup);
+    }
+
     // ── Buttons ─────────────────────────────────────────────────────────
     auto *buttons = new QDialogButtonBox(
         QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
@@ -147,6 +202,25 @@ void PropertyDialog::applyChanges()
     m_element->setBgColor(m_bgColor);
     m_element->setTextColor(m_textColor);
     m_element->setCornerRadius(m_radiusBox->value());
+
+    // ── Type-specific properties ────────────────────────────────────────
+    if (m_element->elementType() == ElementType::PinEntry) {
+        auto *pin = static_cast<PinEntryElement *>(m_element);
+        if (m_maskedCheck)
+            pin->setMasked(m_maskedCheck->isChecked());
+        if (m_maxLengthBox)
+            pin->setMaxLength(m_maxLengthBox->value());
+    }
+    if (m_element->elementType() == ElementType::KeypadButton) {
+        auto *kpd = static_cast<KeypadButtonElement *>(m_element);
+        if (m_keyValueEdit)
+            kpd->setKeyValue(m_keyValueEdit->text());
+    }
+    if (m_element->elementType() == ElementType::ActionButton) {
+        auto *act = static_cast<ActionButtonElement *>(m_element);
+        if (m_actionTypeCombo)
+            act->setActionType(static_cast<ActionType>(m_actionTypeCombo->currentData().toInt()));
+    }
 
     accept();
 }

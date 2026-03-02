@@ -33,6 +33,10 @@ protected:
 
 private:
     void buildTestPage();
+    void buildDefaultLoginPage();
+    void ensureSystemPages();
+    void wirePageKeypad(const QString &pageName);
+    void handleAction(const QString &pageName, ActionType action);
     void toggleEditMode();
     void openPropertyDialog(UiElement *elem);
     void openPageManager();

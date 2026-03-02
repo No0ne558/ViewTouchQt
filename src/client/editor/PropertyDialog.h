@@ -6,6 +6,7 @@
 
 #include "../layout/UiElement.h"
 
+#include <QCheckBox>
 #include <QDialog>
 #include <QLineEdit>
 #include <QSpinBox>
@@ -45,6 +46,12 @@ private:
 
     QColor m_bgColor;
     QColor m_textColor;
+
+    // Type-specific widgets
+    QLineEdit *m_keyValueEdit    = nullptr;   // KeypadButton
+    QComboBox *m_actionTypeCombo = nullptr;   // ActionButton
+    QCheckBox *m_maskedCheck     = nullptr;   // PinEntry
+    QSpinBox  *m_maxLengthBox    = nullptr;   // PinEntry
 };
 
 } // namespace vt

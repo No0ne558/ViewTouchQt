@@ -5,6 +5,7 @@
 #define VT_LAYOUT_ENGINE_H
 
 #include "PageWidget.h"
+#include "ActionButtonElement.h"
 
 #include <QGraphicsScene>
 #include <QHash>
@@ -49,6 +50,12 @@ public:
     /// Names of all pages.
     QStringList pageNames() const;
 
+    /// Names of system pages only.
+    QStringList systemPageNames() const;
+
+    /// Names of user (non-system) pages only.
+    QStringList userPageNames() const;
+
     // ── Navigation ──────────────────────────────────────────────────────
 
     /// Show the named page (detaches the previous one).
@@ -66,6 +73,12 @@ signals:
 
     /// Forwarded: any button on any page was clicked.
     void buttonClicked(const QString &pageName, const QString &elementId);
+
+    /// Forwarded: a keypad button was pressed on a page.
+    void keypadPressed(const QString &pageName, const QString &value);
+
+    /// Forwarded: an action button was triggered on a page.
+    void actionTriggered(const QString &pageName, vt::ActionType action);
 
 private:
     QGraphicsScene *m_scene = nullptr;
