@@ -7,6 +7,7 @@
 #include "PosClient.h"
 #include "layout/LayoutEngine.h"
 #include "editor/EditorOverlay.h"
+#include "displays/DisplayManager.h"
 
 #include <QGraphicsScene>
 #include <QGraphicsView>
@@ -41,12 +42,24 @@ protected:
 private:
     void buildTestPage();
     void buildDefaultLoginPage();
+    void buildDisplaysPage();
+    void buildDisplayEditPage();
+    void buildDisplayEditKeyboard(PageWidget *pg);
     void ensureSystemPages();
     void wirePageKeypad(const QString &pageName);
     void handleAction(const QString &pageName, ActionType action, const QString &targetPage);
     void toggleEditMode();
     void openPropertyDialog(UiElement *elem);
     void openPageManager();
+
+    // ── Display management helpers ──────────────────────────────────────
+    void refreshDisplayList();
+    void handleAddDisplay();
+    void handleEditDisplay();
+    void handleRemoveDisplay();
+    void handleToggleDisplay();
+    void handleTestPrinter();
+    void handleDisplayDone();
 
     /// Try to load layout from the default file path; returns true on success.
     bool loadLayoutIfExists();
@@ -58,12 +71,15 @@ private:
     static constexpr qreal kDesignW = 1920.0;
     static constexpr qreal kDesignH = 1080.0;
 
-    QGraphicsView  *m_view   = nullptr;
-    QGraphicsScene *m_scene  = nullptr;
-    LayoutEngine   *m_engine = nullptr;
-    EditorOverlay  *m_editor = nullptr;
-    PosClient      *m_client = nullptr;
-    QString         m_lastPressedButtonId;
+    QGraphicsView   *m_view   = nullptr;
+    QGraphicsScene  *m_scene  = nullptr;
+    LayoutEngine    *m_engine = nullptr;
+    EditorOverlay   *m_editor = nullptr;
+    PosClient       *m_client = nullptr;
+    DisplayManager  *m_displayMgr = nullptr;
+    QString          m_lastPressedButtonId;
+    int              m_selectedDisplayIdx = -1;   // index in DisplayManager
+    QString          m_editingDisplayUuid;        // UUID of display being edited
 };
 
 } // namespace vt

@@ -31,17 +31,25 @@ target_sources(vt_host PRIVATE
     ${CMAKE_SOURCE_DIR}/src/client/editor/LayoutSerializer.cpp
     ${CMAKE_SOURCE_DIR}/src/client/editor/PageManagerDialog.cpp
     ${CMAKE_SOURCE_DIR}/src/client/editor/PageTabBar.cpp
+    # Printing & display management
+    ${CMAKE_SOURCE_DIR}/src/client/printing/CupsPrinter.cpp
+    ${CMAKE_SOURCE_DIR}/src/client/displays/DisplayManager.cpp
 )
+
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(CUPS REQUIRED cups)
 
 target_include_directories(vt_host PRIVATE
     ${CMAKE_SOURCE_DIR}/src/server
     ${CMAKE_SOURCE_DIR}/src/client
+    ${CUPS_INCLUDE_DIRS}
 )
 
 target_link_libraries(vt_host PRIVATE
     vt_common
     Qt6::Widgets
     Qt6::Network
+    ${CUPS_LIBRARIES}
 )
 
 install(TARGETS vt_host RUNTIME DESTINATION bin)

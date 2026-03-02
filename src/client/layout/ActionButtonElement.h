@@ -11,11 +11,18 @@ namespace vt {
 
 /// The action a button performs when pressed.
 enum class ActionType {
-    Login,      // Navigate to the Tables page
-    DineIn,     // Navigate to the Order page
-    ToGo,       // Navigate to the Order page
-    Logout,     // Navigate back to the Login page
-    Navigation, // Navigate to a specific page by name
+    Login,          // Navigate to the Tables page
+    DineIn,         // Navigate to the Order page
+    ToGo,           // Navigate to the Order page
+    Logout,         // Navigate back to the Login page
+    Navigation,     // Navigate to a specific page by name
+    ShowDisplays,   // Navigate to the Displays page
+    AddDisplay,     // Add a new display
+    EditDisplay,    // Edit selected display → DisplayEdit page
+    RemoveDisplay,  // Remove selected display
+    ToggleDisplay,  // Activate/Deactivate selected display
+    TestPrinter,    // Send a test print to the display's printer
+    DisplayDone,    // Save and return from DisplayEdit
 };
 
 /// A button that performs a POS navigation action.

@@ -204,6 +204,13 @@ void PropertyDialog::setupUi()
         m_actionTypeCombo->addItem(QStringLiteral("To-Go (→ Order)"), static_cast<int>(ActionType::ToGo));
         m_actionTypeCombo->addItem(QStringLiteral("Logout (→ Login)"), static_cast<int>(ActionType::Logout));
         m_actionTypeCombo->addItem(QStringLiteral("Navigation (→ Page…)"), static_cast<int>(ActionType::Navigation));
+        m_actionTypeCombo->addItem(QStringLiteral("Show Displays"), static_cast<int>(ActionType::ShowDisplays));
+        m_actionTypeCombo->addItem(QStringLiteral("Add Display"), static_cast<int>(ActionType::AddDisplay));
+        m_actionTypeCombo->addItem(QStringLiteral("Edit Display"), static_cast<int>(ActionType::EditDisplay));
+        m_actionTypeCombo->addItem(QStringLiteral("Remove Display"), static_cast<int>(ActionType::RemoveDisplay));
+        m_actionTypeCombo->addItem(QStringLiteral("Toggle Display"), static_cast<int>(ActionType::ToggleDisplay));
+        m_actionTypeCombo->addItem(QStringLiteral("Test Printer"), static_cast<int>(ActionType::TestPrinter));
+        m_actionTypeCombo->addItem(QStringLiteral("Display Done"), static_cast<int>(ActionType::DisplayDone));
 
         m_navTargetCombo = new QComboBox;
         m_navTargetCombo->setToolTip(QStringLiteral("Target page for Navigation action."));
@@ -211,7 +218,9 @@ void PropertyDialog::setupUi()
         // If current element IS an ActionButton, load actual value
         if (m_element->elementType() == ElementType::ActionButton) {
             auto *act = static_cast<ActionButtonElement *>(m_element);
-            m_actionTypeCombo->setCurrentIndex(static_cast<int>(act->actionType()));
+            int idx = m_actionTypeCombo->findData(static_cast<int>(act->actionType()));
+            if (idx >= 0)
+                m_actionTypeCombo->setCurrentIndex(idx);
         }
 
         // Show/hide target combo based on selected action type

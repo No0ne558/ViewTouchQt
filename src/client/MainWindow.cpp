@@ -8,6 +8,8 @@
 #include "layout/PinEntryElement.h"
 #include "layout/KeypadButtonElement.h"
 #include "layout/ActionButtonElement.h"
+#include "displays/DisplayManager.h"
+#include "printing/CupsPrinter.h"
 
 #include <QCoreApplication>
 #include <QDir>
@@ -44,6 +46,10 @@ MainWindow::MainWindow(PosClient *client, QWidget *parent)
 
     // ── Layout engine ───────────────────────────────────────────────────
     m_engine = new LayoutEngine(m_scene, this);
+
+    // ── Display manager ─────────────────────────────────────────────────
+    m_displayMgr = new DisplayManager(this);
+    m_displayMgr->loadFromFile(DisplayManager::defaultFilePath());
 
     // Forward any button click to the server and track which button was pressed.
     connect(m_engine, &LayoutEngine::buttonClicked, this,
@@ -369,6 +375,20 @@ void MainWindow::ensureSystemPages()
         m_engine->page(QStringLiteral("Order"))->setSystemPage(true);
     }
 
+    // ── Displays page ───────────────────────────────────────────────────
+    if (!m_engine->page(QStringLiteral("Displays"))) {
+        buildDisplaysPage();
+    } else {
+        m_engine->page(QStringLiteral("Displays"))->setSystemPage(true);
+    }
+
+    // ── DisplayEdit page ────────────────────────────────────────────────
+    if (!m_engine->page(QStringLiteral("DisplayEdit"))) {
+        buildDisplayEditPage();
+    } else {
+        m_engine->page(QStringLiteral("DisplayEdit"))->setSystemPage(true);
+    }
+
     // Wire up local keypad → PIN entry connections for all pages
     for (const QString &name : m_engine->pageNames()) {
         wirePageKeypad(name);
@@ -493,32 +513,34 @@ void MainWindow::wirePageKeypad(const QString &pageName)
     auto *pg = m_engine->page(pageName);
     if (!pg) return;
 
-    // Find the PinEntry element on this page
-    PinEntryElement *pinEntry = nullptr;
+    // Collect all PinEntry elements on this page.
+    QList<PinEntryElement *> pinEntries;
     for (UiElement *elem : pg->elements()) {
-        if (elem->elementType() == ElementType::PinEntry) {
-            pinEntry = static_cast<PinEntryElement *>(elem);
-            break;
-        }
+        if (elem->elementType() == ElementType::PinEntry)
+            pinEntries.append(static_cast<PinEntryElement *>(elem));
     }
-    if (!pinEntry) return;
+    if (pinEntries.isEmpty()) return;
 
-    // Connect each KeypadButton to the PinEntry
+    // Connect each KeypadButton to the focused PinEntry (or the first one).
     for (UiElement *elem : pg->elements()) {
         if (elem->elementType() == ElementType::KeypadButton) {
             auto *kpd = static_cast<KeypadButtonElement *>(elem);
             // Disconnect any previous connection to avoid duplicates
             disconnect(kpd, &KeypadButtonElement::keyPressed, nullptr, nullptr);
-            // Reconnect to this page's keypadPressed signal (which we now handle directly)
-            connect(kpd, &KeypadButtonElement::keyPressed, pinEntry,
-                    [pinEntry](const QString &value) {
+            connect(kpd, &KeypadButtonElement::keyPressed, this,
+                    [pinEntries](const QString &value) {
+                        // Find the PinEntry that has focus; default to first.
+                        PinEntryElement *target = pinEntries.first();
+                        for (auto *pe : pinEntries) {
+                            if (pe->hasFocus()) { target = pe; break; }
+                        }
                         if (value == QStringLiteral("BACK")) {
-                            pinEntry->backspace();
+                            target->backspace();
                         } else if (value == QStringLiteral("CLEAR")) {
-                            pinEntry->clearPin();
+                            target->clearPin();
                         } else {
                             for (QChar ch : value)
-                                pinEntry->appendChar(ch);
+                                target->appendChar(ch);
                         }
                     });
         }
@@ -575,7 +597,526 @@ void MainWindow::handleAction(const QString &pageName, ActionType action, const 
         else
             qWarning() << "[action] Navigation target page not found:" << targetPage;
         break;
+    case ActionType::ShowDisplays:
+        refreshDisplayList();
+        m_engine->showPage(QStringLiteral("Displays"));
+        break;
+    case ActionType::AddDisplay:
+        handleAddDisplay();
+        break;
+    case ActionType::EditDisplay:
+        handleEditDisplay();
+        break;
+    case ActionType::RemoveDisplay:
+        handleRemoveDisplay();
+        break;
+    case ActionType::ToggleDisplay:
+        handleToggleDisplay();
+        break;
+    case ActionType::TestPrinter:
+        handleTestPrinter();
+        break;
+    case ActionType::DisplayDone:
+        handleDisplayDone();
+        break;
     }
+}
+
+// ── Displays page ───────────────────────────────────────────────────────────
+
+void MainWindow::buildDisplaysPage()
+{
+    auto *pg = m_engine->createPage(QStringLiteral("Displays"));
+    pg->setSystemPage(true);
+
+    // Background
+    auto *bg = pg->addPanel(QStringLiteral("disp_bg"), 0, 0, 1920, 1080);
+    bg->setBgColor(QColor(25, 25, 30));
+    bg->setCornerRadius(0);
+
+    // Title
+    auto *title = pg->addLabel(QStringLiteral("disp_title"), 40, 30, 600, 60,
+                                QStringLiteral("Displays"));
+    title->setFontSize(40);
+    title->setTextColor(Qt::white);
+
+    // Display list area — labels will be populated dynamically
+    // Placeholder hint
+    auto *hint = pg->addLabel(QStringLiteral("disp_hint"), 40, 110, 1200, 40,
+                               QStringLiteral("No displays configured yet."));
+    hint->setFontSize(18);
+    hint->setTextColor(QColor(150, 150, 150));
+
+    // We'll create up to 10 row labels for the display list
+    constexpr qreal listX = 40;
+    constexpr qreal listY = 160;
+    constexpr qreal rowH  = 60;
+    constexpr qreal rowGap = 10;
+
+    for (int i = 0; i < 10; ++i) {
+        qreal y = listY + i * (rowH + rowGap);
+        QString id = QStringLiteral("disp_row_%1").arg(i);
+        auto *row = pg->addButton(id, listX, y, 1200, rowH, QString());
+        row->setBgColor(QColor(45, 45, 50));
+        row->setTextColor(Qt::white);
+        row->setFontSize(20);
+        row->setCornerRadius(6);
+        row->setVisible(false);
+    }
+
+    // Action buttons — right column
+    constexpr qreal btnX = 1350;
+    constexpr qreal btnW = 500;
+    constexpr qreal btnH = 80;
+    constexpr qreal btnGap = 20;
+
+    auto *addBtn = pg->addActionButton(QStringLiteral("disp_add"), btnX, 160, btnW, btnH,
+                                        QStringLiteral("Add Display"), ActionType::AddDisplay);
+    addBtn->setBgColor(QColor(40, 120, 40));
+    addBtn->setTextColor(Qt::white);
+    addBtn->setFontSize(24);
+
+    auto *editBtn = pg->addActionButton(QStringLiteral("disp_edit"), btnX, 160 + (btnH + btnGap), btnW, btnH,
+                                         QStringLiteral("Edit Display"), ActionType::EditDisplay);
+    editBtn->setBgColor(QColor(50, 100, 180));
+    editBtn->setTextColor(Qt::white);
+    editBtn->setFontSize(24);
+
+    auto *removeBtn = pg->addActionButton(QStringLiteral("disp_remove"), btnX, 160 + 2*(btnH + btnGap), btnW, btnH,
+                                           QStringLiteral("Remove Display"), ActionType::RemoveDisplay);
+    removeBtn->setBgColor(QColor(180, 40, 40));
+    removeBtn->setTextColor(Qt::white);
+    removeBtn->setFontSize(24);
+
+    auto *toggleBtn = pg->addActionButton(QStringLiteral("disp_toggle"), btnX, 160 + 3*(btnH + btnGap), btnW, btnH,
+                                           QStringLiteral("Activate / Deactivate"), ActionType::ToggleDisplay);
+    toggleBtn->setBgColor(QColor(160, 120, 20));
+    toggleBtn->setTextColor(Qt::white);
+    toggleBtn->setFontSize(24);
+
+    // Back button
+    auto *backBtn = pg->addActionButton(QStringLiteral("disp_back"), btnX, 160 + 5*(btnH + btnGap), btnW, btnH,
+                                         QStringLiteral("← Back"), ActionType::Navigation);
+    backBtn->setTargetPage(QStringLiteral("Tables"));
+    backBtn->setBgColor(QColor(80, 80, 80));
+    backBtn->setTextColor(Qt::white);
+    backBtn->setFontSize(24);
+
+    // Status label
+    auto *status = pg->addLabel(QStringLiteral("disp_status"), 40, 900, 1200, 40, QString());
+    status->setFontSize(18);
+    status->setTextColor(QColor(200, 200, 100));
+}
+
+void MainWindow::buildDisplayEditPage()
+{
+    auto *pg = m_engine->createPage(QStringLiteral("DisplayEdit"));
+    pg->setSystemPage(true);
+
+    // Background
+    auto *bg = pg->addPanel(QStringLiteral("dedit_bg"), 0, 0, 1920, 1080);
+    bg->setBgColor(QColor(25, 25, 30));
+    bg->setCornerRadius(0);
+
+    // Title
+    auto *title = pg->addLabel(QStringLiteral("dedit_title"), 40, 30, 800, 60,
+                                QStringLiteral("Edit Display"));
+    title->setFontSize(40);
+    title->setTextColor(Qt::white);
+
+    // Form fields — centered column
+    constexpr qreal formX = 460;
+    constexpr qreal labelW = 340;
+    constexpr qreal fieldX = 810;
+    constexpr qreal fieldW = 600;
+    constexpr qreal rowH = 60;
+    constexpr qreal rowGap = 30;
+    qreal y = 160;
+
+    // Display Name
+    auto *nameLabel = pg->addLabel(QStringLiteral("dedit_name_lbl"), formX, y, labelW, rowH,
+                                    QStringLiteral("Display Name:"));
+    nameLabel->setFontSize(26);
+    nameLabel->setTextColor(Qt::white);
+    nameLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+
+    auto *nameField = pg->addPinEntry(QStringLiteral("dedit_name"), fieldX, y, fieldW, rowH);
+    nameField->setLabel(QStringLiteral("e.g. Bar 1"));
+    nameField->setMasked(false);
+    nameField->setMaxLength(30);
+    nameField->setFontSize(24);
+
+    y += rowH + rowGap;
+
+    // Display IP Address
+    auto *ipLabel = pg->addLabel(QStringLiteral("dedit_ip_lbl"), formX, y, labelW, rowH,
+                                  QStringLiteral("Display IP Address:"));
+    ipLabel->setFontSize(26);
+    ipLabel->setTextColor(Qt::white);
+    ipLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+
+    auto *ipField = pg->addPinEntry(QStringLiteral("dedit_ip"), fieldX, y, fieldW, rowH);
+    ipField->setLabel(QStringLiteral("e.g. 192.168.1.72"));
+    ipField->setMasked(false);
+    ipField->setMaxLength(45);
+    ipField->setFontSize(24);
+
+    y += rowH + rowGap;
+
+    // Printer (label — the actual selection is done via a button that cycles)
+    auto *printerLabel = pg->addLabel(QStringLiteral("dedit_printer_lbl"), formX, y, labelW, rowH,
+                                       QStringLiteral("Printer:"));
+    printerLabel->setFontSize(26);
+    printerLabel->setTextColor(Qt::white);
+    printerLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+
+    // Printer selection button — tapping cycles through available CUPS printers
+    auto *printerBtn = pg->addButton(QStringLiteral("dedit_printer"), fieldX, y, fieldW, rowH,
+                                      QStringLiteral("(none)"));
+    printerBtn->setBgColor(QColor(55, 55, 65));
+    printerBtn->setTextColor(Qt::white);
+    printerBtn->setFontSize(22);
+
+    y += rowH + rowGap;
+
+    // Test Printer button
+    auto *testBtn = pg->addActionButton(QStringLiteral("dedit_test"), fieldX, y, fieldW, rowH,
+                                         QStringLiteral("Test Printer"), ActionType::TestPrinter);
+    testBtn->setBgColor(QColor(50, 100, 180));
+    testBtn->setTextColor(Qt::white);
+    testBtn->setFontSize(24);
+
+    y += rowH + rowGap + 20;
+
+    // Done button
+    auto *doneBtn = pg->addActionButton(QStringLiteral("dedit_done"), fieldX, y, fieldW, rowH,
+                                         QStringLiteral("Done"), ActionType::DisplayDone);
+    doneBtn->setBgColor(QColor(40, 120, 40));
+    doneBtn->setTextColor(Qt::white);
+    doneBtn->setFontSize(28);
+
+    // Status label
+    auto *status = pg->addLabel(QStringLiteral("dedit_status"), 40, 900, 1200, 40, QString());
+    status->setFontSize(18);
+    status->setTextColor(QColor(200, 200, 100));
+
+    // Keyboard for text input (full QWERTY + numbers + special)
+    buildDisplayEditKeyboard(pg);
+}
+
+void MainWindow::buildDisplayEditKeyboard(PageWidget *pg)
+{
+    // Compact on-screen QWERTY keyboard placed at the bottom of the page.
+    // Each key is a KeypadButton; letters arrive via the keypad wiring to
+    // whichever PinEntry currently has "focus" (the page has two: name and ip).
+
+    constexpr qreal kbdY = 580;
+    constexpr qreal keyW = 110;
+    constexpr qreal keyH = 70;
+    constexpr qreal gap  = 6;
+
+    // Row 1: numbers + period + dash
+    const QStringList row1 = {
+        QStringLiteral("1"), QStringLiteral("2"), QStringLiteral("3"),
+        QStringLiteral("4"), QStringLiteral("5"), QStringLiteral("6"),
+        QStringLiteral("7"), QStringLiteral("8"), QStringLiteral("9"),
+        QStringLiteral("0"), QStringLiteral("."), QStringLiteral("-"),
+    };
+    for (int i = 0; i < row1.size(); ++i) {
+        qreal x = 100 + i * (keyW + gap);
+        QString id = QStringLiteral("dk_r1_%1").arg(i);
+        auto *k = pg->addKeypadButton(id, x, kbdY, keyW, keyH, row1[i]);
+        k->setBgColor(QColor(55, 55, 60));
+        k->setTextColor(Qt::white);
+        k->setFontSize(22);
+    }
+
+    // Row 2: QWERTYUIOP
+    const QStringList row2 = {
+        QStringLiteral("Q"), QStringLiteral("W"), QStringLiteral("E"),
+        QStringLiteral("R"), QStringLiteral("T"), QStringLiteral("Y"),
+        QStringLiteral("U"), QStringLiteral("I"), QStringLiteral("O"),
+        QStringLiteral("P"),
+    };
+    qreal row2Y = kbdY + keyH + gap;
+    for (int i = 0; i < row2.size(); ++i) {
+        qreal x = 100 + i * (keyW + gap);
+        QString id = QStringLiteral("dk_r2_%1").arg(i);
+        auto *k = pg->addKeypadButton(id, x, row2Y, keyW, keyH, row2[i]);
+        k->setBgColor(QColor(55, 55, 60));
+        k->setTextColor(Qt::white);
+        k->setFontSize(22);
+    }
+
+    // Row 3: ASDFGHJKL
+    const QStringList row3 = {
+        QStringLiteral("A"), QStringLiteral("S"), QStringLiteral("D"),
+        QStringLiteral("F"), QStringLiteral("G"), QStringLiteral("H"),
+        QStringLiteral("J"), QStringLiteral("K"), QStringLiteral("L"),
+    };
+    qreal row3Y = row2Y + keyH + gap;
+    for (int i = 0; i < row3.size(); ++i) {
+        qreal x = 155 + i * (keyW + gap);
+        QString id = QStringLiteral("dk_r3_%1").arg(i);
+        auto *k = pg->addKeypadButton(id, x, row3Y, keyW, keyH, row3[i]);
+        k->setBgColor(QColor(55, 55, 60));
+        k->setTextColor(Qt::white);
+        k->setFontSize(22);
+    }
+
+    // Row 4: ZXCVBNM + BACK
+    const QStringList row4 = {
+        QStringLiteral("Z"), QStringLiteral("X"), QStringLiteral("C"),
+        QStringLiteral("V"), QStringLiteral("B"), QStringLiteral("N"),
+        QStringLiteral("M"),
+    };
+    qreal row4Y = row3Y + keyH + gap;
+    for (int i = 0; i < row4.size(); ++i) {
+        qreal x = 210 + i * (keyW + gap);
+        QString id = QStringLiteral("dk_r4_%1").arg(i);
+        auto *k = pg->addKeypadButton(id, x, row4Y, keyW, keyH, row4[i]);
+        k->setBgColor(QColor(55, 55, 60));
+        k->setTextColor(Qt::white);
+        k->setFontSize(22);
+    }
+
+    // Backspace + Space + Clear on bottom row
+    qreal row5Y = row4Y + keyH + gap;
+
+    auto *backKey = pg->addKeypadButton(QStringLiteral("dk_back"), 210, row5Y, 200, keyH,
+                                         QStringLiteral("← Back"));
+    backKey->setKeyValue(QStringLiteral("BACK"));
+    backKey->setBgColor(QColor(120, 50, 50));
+    backKey->setTextColor(Qt::white);
+    backKey->setFontSize(20);
+
+    auto *spaceKey = pg->addKeypadButton(QStringLiteral("dk_space"), 420, row5Y, 400, keyH,
+                                          QStringLiteral("Space"));
+    spaceKey->setKeyValue(QStringLiteral(" "));
+    spaceKey->setBgColor(QColor(65, 65, 70));
+    spaceKey->setTextColor(Qt::white);
+    spaceKey->setFontSize(20);
+
+    auto *clearKey = pg->addKeypadButton(QStringLiteral("dk_clear"), 830, row5Y, 200, keyH,
+                                          QStringLiteral("Clear"));
+    clearKey->setKeyValue(QStringLiteral("CLEAR"));
+    clearKey->setBgColor(QColor(120, 80, 20));
+    clearKey->setTextColor(Qt::white);
+    clearKey->setFontSize(20);
+}
+
+// ── Display management handlers ─────────────────────────────────────────────
+
+void MainWindow::refreshDisplayList()
+{
+    auto *pg = m_engine->page(QStringLiteral("Displays"));
+    if (!pg) return;
+
+    const auto &displays = m_displayMgr->displays();
+
+    // Update hint visibility
+    if (auto *hint = pg->element(QStringLiteral("disp_hint")))
+        hint->setVisible(displays.isEmpty());
+
+    // Update row buttons
+    for (int i = 0; i < 10; ++i) {
+        QString id = QStringLiteral("disp_row_%1").arg(i);
+        auto *row = pg->element(id);
+        if (!row) continue;
+
+        if (i < displays.size()) {
+            const auto &d = displays.at(i);
+            QString text = QStringLiteral("%1  |  %2  |  %3  |  %4")
+                .arg(d.name, -15)
+                .arg(d.ipAddress, -18)
+                .arg(d.printer.isEmpty() ? QStringLiteral("(no printer)") : d.printer, -15)
+                .arg(d.active ? QStringLiteral("ACTIVE") : QStringLiteral("INACTIVE"));
+            row->setLabel(text);
+
+            auto *btn = static_cast<ButtonElement *>(row);
+            btn->setBgColor(i == m_selectedDisplayIdx ? QColor(70, 70, 120) : QColor(45, 45, 50));
+            row->setVisible(true);
+        } else {
+            row->setVisible(false);
+        }
+    }
+
+    // Connect row clicks for selection
+    for (int i = 0; i < 10 && i < displays.size(); ++i) {
+        QString id = QStringLiteral("disp_row_%1").arg(i);
+        auto *row = pg->element(id);
+        if (!row) continue;
+        auto *btn = static_cast<ButtonElement *>(row);
+        disconnect(btn, &ButtonElement::clicked, nullptr, nullptr);
+        connect(btn, &ButtonElement::clicked, this, [this, i]() {
+            m_selectedDisplayIdx = i;
+            refreshDisplayList();
+        });
+    }
+}
+
+void MainWindow::handleAddDisplay()
+{
+    auto cfg = DisplayConfig::create(
+        QStringLiteral("Display %1").arg(m_displayMgr->count() + 1),
+        QStringLiteral("192.168.1."));
+    m_displayMgr->addDisplay(cfg);
+    m_selectedDisplayIdx = m_displayMgr->count() - 1;
+    m_displayMgr->saveToFile(DisplayManager::defaultFilePath());
+    refreshDisplayList();
+
+    if (auto *status = m_engine->page(QStringLiteral("Displays"))->element(QStringLiteral("disp_status")))
+        status->setLabel(QStringLiteral("Display added. Select it and press Edit to configure."));
+}
+
+void MainWindow::handleEditDisplay()
+{
+    if (m_selectedDisplayIdx < 0 || m_selectedDisplayIdx >= m_displayMgr->count()) {
+        if (auto *pg = m_engine->page(QStringLiteral("Displays")))
+            if (auto *s = pg->element(QStringLiteral("disp_status")))
+                s->setLabel(QStringLiteral("Select a display first."));
+        return;
+    }
+
+    auto *cfg = m_displayMgr->displayAt(m_selectedDisplayIdx);
+    if (!cfg) return;
+    m_editingDisplayUuid = cfg->uuid;
+
+    // Populate DisplayEdit fields
+    auto *editPg = m_engine->page(QStringLiteral("DisplayEdit"));
+    if (!editPg) return;
+
+    if (auto *nameField = static_cast<PinEntryElement *>(editPg->element(QStringLiteral("dedit_name")))) {
+        nameField->clearPin();
+        for (QChar ch : cfg->name)
+            nameField->appendChar(ch);
+    }
+    if (auto *ipField = static_cast<PinEntryElement *>(editPg->element(QStringLiteral("dedit_ip")))) {
+        ipField->clearPin();
+        for (QChar ch : cfg->ipAddress)
+            ipField->appendChar(ch);
+    }
+
+    // Set printer button label
+    if (auto *printerBtn = editPg->element(QStringLiteral("dedit_printer"))) {
+        printerBtn->setLabel(cfg->printer.isEmpty() ? QStringLiteral("(none)") : cfg->printer);
+    }
+
+    // Wire printer button to cycle through CUPS printers
+    if (auto *printerBtn = static_cast<ButtonElement *>(editPg->element(QStringLiteral("dedit_printer")))) {
+        disconnect(printerBtn, &ButtonElement::clicked, nullptr, nullptr);
+        connect(printerBtn, &ButtonElement::clicked, this, [this, printerBtn]() {
+            QStringList printers = CupsPrinter::availablePrinters();
+            if (printers.isEmpty()) {
+                printerBtn->setLabel(QStringLiteral("(no printers found)"));
+                return;
+            }
+            // Cycle to next printer
+            QString current = printerBtn->label();
+            int idx = printers.indexOf(current);
+            int next = (idx + 1) % printers.size();
+            printerBtn->setLabel(printers.at(next));
+        });
+    }
+
+    m_engine->showPage(QStringLiteral("DisplayEdit"));
+}
+
+void MainWindow::handleRemoveDisplay()
+{
+    if (m_selectedDisplayIdx < 0 || m_selectedDisplayIdx >= m_displayMgr->count()) {
+        if (auto *pg = m_engine->page(QStringLiteral("Displays")))
+            if (auto *s = pg->element(QStringLiteral("disp_status")))
+                s->setLabel(QStringLiteral("Select a display to remove."));
+        return;
+    }
+
+    auto *cfg = m_displayMgr->displayAt(m_selectedDisplayIdx);
+    if (cfg) {
+        QString name = cfg->name;
+        m_displayMgr->removeDisplay(cfg->uuid);
+        m_displayMgr->saveToFile(DisplayManager::defaultFilePath());
+        m_selectedDisplayIdx = -1;
+        refreshDisplayList();
+
+        if (auto *pg = m_engine->page(QStringLiteral("Displays")))
+            if (auto *s = pg->element(QStringLiteral("disp_status")))
+                s->setLabel(QStringLiteral("Removed: ") + name);
+    }
+}
+
+void MainWindow::handleToggleDisplay()
+{
+    if (m_selectedDisplayIdx < 0 || m_selectedDisplayIdx >= m_displayMgr->count()) {
+        if (auto *pg = m_engine->page(QStringLiteral("Displays")))
+            if (auto *s = pg->element(QStringLiteral("disp_status")))
+                s->setLabel(QStringLiteral("Select a display to toggle."));
+        return;
+    }
+
+    auto *cfg = m_displayMgr->displayAt(m_selectedDisplayIdx);
+    if (cfg) {
+        bool newState = m_displayMgr->toggleActive(cfg->uuid);
+        m_displayMgr->saveToFile(DisplayManager::defaultFilePath());
+        refreshDisplayList();
+
+        if (auto *pg = m_engine->page(QStringLiteral("Displays")))
+            if (auto *s = pg->element(QStringLiteral("disp_status")))
+                s->setLabel(cfg->name + (newState ? QStringLiteral(" activated") : QStringLiteral(" deactivated")));
+    }
+}
+
+void MainWindow::handleTestPrinter()
+{
+    auto *editPg = m_engine->page(QStringLiteral("DisplayEdit"));
+    if (!editPg) return;
+
+    QString printer;
+    if (auto *printerBtn = editPg->element(QStringLiteral("dedit_printer")))
+        printer = printerBtn->label();
+
+    if (printer.isEmpty() || printer.startsWith('(')) {
+        if (auto *s = editPg->element(QStringLiteral("dedit_status")))
+            s->setLabel(QStringLiteral("Select a printer first."));
+        return;
+    }
+
+    bool ok = CupsPrinter::printTestPage(printer);
+    if (auto *s = editPg->element(QStringLiteral("dedit_status")))
+        s->setLabel(ok ? QStringLiteral("Test page sent to ") + printer
+                       : QStringLiteral("Print failed — check CUPS."));
+}
+
+void MainWindow::handleDisplayDone()
+{
+    auto *editPg = m_engine->page(QStringLiteral("DisplayEdit"));
+    if (!editPg) return;
+
+    auto *cfg = m_displayMgr->display(m_editingDisplayUuid);
+    if (!cfg) {
+        m_engine->showPage(QStringLiteral("Displays"));
+        return;
+    }
+
+    // Read fields back
+    if (auto *nameField = static_cast<PinEntryElement *>(editPg->element(QStringLiteral("dedit_name"))))
+        cfg->name = nameField->pinText();
+    if (auto *ipField = static_cast<PinEntryElement *>(editPg->element(QStringLiteral("dedit_ip"))))
+        cfg->ipAddress = ipField->pinText();
+    if (auto *printerBtn = editPg->element(QStringLiteral("dedit_printer"))) {
+        QString lbl = printerBtn->label();
+        cfg->printer = (lbl.startsWith('(')) ? QString() : lbl;
+    }
+
+    m_displayMgr->updateDisplay(*cfg);
+    m_displayMgr->saveToFile(DisplayManager::defaultFilePath());
+    m_editingDisplayUuid.clear();
+
+    refreshDisplayList();
+    m_engine->showPage(QStringLiteral("Displays"));
+
+    if (auto *s = m_engine->page(QStringLiteral("Displays"))->element(QStringLiteral("disp_status")))
+        s->setLabel(QStringLiteral("Display saved."));
 }
 
 // ── Layout sync from server ─────────────────────────────────────────────────

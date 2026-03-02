@@ -119,6 +119,20 @@ All notable changes to this project will be documented in this file.
   - Host wiring: layout changes flow from MainWindow → PosServer → all remote clients
   - Client wiring: layout sync received from server is applied automatically
   - Each client remains an independent terminal (own POS state, own interactions)
+- Added display management system with CUPS printer integration
+  - New "Displays" system page: lists configured terminals with name, IP, printer, active status
+  - Selection-based CRUD: Add (green), Edit (blue), Remove (red), Toggle active (yellow) buttons
+  - New "DisplayEdit" system page: form for Display Name, Display IP Address, Printer, Test Printer, Done
+  - Built-in full QWERTY keyboard on DisplayEdit (5 rows: numbers/punct, QWERTYUIOP, ASDFGHJKL, ZXCVBNM, Back/Space/Clear)
+  - CUPS printer discovery via `CupsPrinter::availablePrinters()` (uses `cupsGetDests()`)
+  - Printer field cycles through discovered CUPS printers on tap
+  - ESC/POS thermal test print: 80mm / 42-char receipt with header, dashes, body, and partial auto-cut (`GS V B 3`)
+  - Raw print job submission via `cupsCreateJob()` / `cupsWriteRequestData()` / `cupsFinishDocument()`
+  - `DisplayConfig` data model: UUID, name, IP, printer, active flag; JSON serialization
+  - `DisplayManager`: CRUD + JSON persistence to `~/.config/ViewTouchQt/displays.json`
+  - 7 new `ActionType` values: ShowDisplays, AddDisplay, EditDisplay, RemoveDisplay, ToggleDisplay, TestPrinter, DisplayDone
+  - PropertyDialog updated with all new action types; fixed combo index mapping via `findData()`
+  - Refactored `wirePageKeypad()` to support multiple PinEntry fields per page using Qt focus system
 
 ## [0.1.0] - 2026-03-01
 - Project scaffold: initial commit

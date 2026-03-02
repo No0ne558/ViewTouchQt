@@ -19,16 +19,24 @@ add_executable(vt_client
     editor/LayoutSerializer.cpp
     editor/PageManagerDialog.cpp
     editor/PageTabBar.cpp
+    printing/CupsPrinter.cpp
+    displays/DisplayManager.cpp
 )
+
+# Find CUPS (required for printer discovery and test printing)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(CUPS REQUIRED cups)
 
 target_include_directories(vt_client PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CUPS_INCLUDE_DIRS}
 )
 
 target_link_libraries(vt_client PRIVATE
     vt_common
     Qt6::Widgets
     Qt6::Network
+    ${CUPS_LIBRARIES}
 )
 
 install(TARGETS vt_client RUNTIME DESTINATION bin)
