@@ -155,12 +155,20 @@ EditorOverlay::EditorOverlay(LayoutEngine *engine, QGraphicsScene *scene,
     , m_engine(engine)
     , m_scene(scene)
 {
+    m_pageTabBar = new PageTabBar(engine, scene, this);
+
+    // When user clicks a tab, deselect (elements may belong to old page)
+    // and refresh the tab bar highlight.
+    connect(m_pageTabBar, &PageTabBar::pageSelected, this, [this]() {
+        deselectAll();
+    });
 }
 
 EditorOverlay::~EditorOverlay()
 {
     hideHandles();
     hideToolbar();
+    m_pageTabBar->setVisible(false);
 }
 
 // ── Edit mode ───────────────────────────────────────────────────────────────
@@ -175,11 +183,13 @@ void EditorOverlay::setEditMode(bool on)
     if (on) {
         installEventFilter();
         showToolbar();
+        m_pageTabBar->setVisible(true);
         qDebug() << "[editor] Edit mode ON";
     } else {
         deselectAll();
         removeEventFilter();
         hideToolbar();
+        m_pageTabBar->setVisible(false);
         qDebug() << "[editor] Edit mode OFF";
     }
 
@@ -311,6 +321,24 @@ bool EditorOverlay::eventFilter(QObject *watched, QEvent *event)
         if (m_dragHandle && m_dragHandle->contains(
                 m_dragHandle->mapFromScene(me->scenePos()))) {
             return false;  // let drag handle process
+        }
+
+        // Check if click is on the page tab bar
+        if (m_pageTabBar && m_pageTabBar->isVisible()) {
+            // The tab bar proxy is an item in the scene; check via itemAt
+            QGraphicsItem *topItem = m_scene->itemAt(me->scenePos(), QTransform());
+            if (topItem) {
+                // Walk up the parent chain to see if it belongs to a proxy widget
+                QGraphicsItem *check = topItem;
+                while (check) {
+                    if (auto *proxy = dynamic_cast<QGraphicsProxyWidget *>(check)) {
+                        if (proxy != m_toolbarProxy) {
+                            return false;  // let page tab bar process
+                        }
+                    }
+                    check = check->parentItem();
+                }
+            }
         }
 
         // Check if we clicked on an element
@@ -502,6 +530,8 @@ void EditorOverlay::showToolbar()
     auto *actDelete = m_toolbar->addAction(QStringLiteral("Delete"));
     auto *actProps  = m_toolbar->addAction(QStringLiteral("Properties"));
     m_toolbar->addSeparator();
+    auto *actPages  = m_toolbar->addAction(QStringLiteral("Pages"));
+    m_toolbar->addSeparator();
     auto *actDone   = m_toolbar->addAction(QStringLiteral("Done (F2)"));
 
     connect(actAddBtn, &QAction::triggered, this,
@@ -515,6 +545,9 @@ void EditorOverlay::showToolbar()
     connect(actProps, &QAction::triggered, this, [this]() {
         if (m_selected)
             emit editPropertiesRequested(m_selected);
+    });
+    connect(actPages, &QAction::triggered, this, [this]() {
+        emit pageManagerRequested();
     });
     connect(actDone, &QAction::triggered, this, [this]() {
         QTimer::singleShot(0, this, [this]() { setEditMode(false); });

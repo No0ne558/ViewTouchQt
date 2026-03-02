@@ -4,6 +4,7 @@
 #include "MainWindow.h"
 #include "editor/PropertyDialog.h"
 #include "editor/LayoutSerializer.h"
+#include "editor/PageManagerDialog.h"
 
 #include <QCoreApplication>
 #include <QDir>
@@ -63,6 +64,8 @@ MainWindow::MainWindow(PosClient *client, QWidget *parent)
     m_editor = new EditorOverlay(m_engine, m_scene, this);
     connect(m_editor, &EditorOverlay::editPropertiesRequested, this,
             &MainWindow::openPropertyDialog);
+    connect(m_editor, &EditorOverlay::pageManagerRequested, this,
+            &MainWindow::openPageManager);
     connect(m_editor, &EditorOverlay::editModeChanged, this, [this](bool on) {
         if (!on) {
             // Auto-save layout when exiting edit mode
@@ -142,6 +145,16 @@ void MainWindow::openPropertyDialog(UiElement *elem)
         m_editor->deselectAll();
         m_editor->selectElement(elem);  // refresh handles after resize
     }
+}
+
+void MainWindow::openPageManager()
+{
+    PageManagerDialog dlg(m_engine, this);
+    dlg.exec();
+
+    // Refresh the page tab bar to reflect any changes
+    m_editor->pageTabBar()->refresh();
+    m_editor->deselectAll();
 }
 
 // ── Layout persistence ──────────────────────────────────────────────────────

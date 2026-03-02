@@ -6,6 +6,7 @@
 
 #include "../layout/UiElement.h"
 #include "../layout/LayoutEngine.h"
+#include "PageTabBar.h"
 
 #include <QGraphicsObject>
 #include <QGraphicsRectItem>
@@ -93,11 +94,16 @@ public:
     /// Add a new element of the given type at the center of the scene.
     void addElement(ElementType type);
 
+    /// Access the page tab bar (for external refresh calls).
+    PageTabBar *pageTabBar() { return m_pageTabBar; }
+
 signals:
     void editModeChanged(bool on);
     void selectionChanged(UiElement *elem);
     /// Request to open property editor for the given element.
     void editPropertiesRequested(UiElement *elem);
+    /// Request to open the page manager dialog.
+    void pageManagerRequested();
 
 public:
     /// Snap a position to the grid (optional, 10px).
@@ -142,6 +148,9 @@ private:
     QGraphicsProxyWidget *m_toolbarProxy = nullptr;
     QToolBar             *m_toolbar      = nullptr;
     ToolbarDragHandle    *m_dragHandle   = nullptr;
+
+    // Page tab bar (bottom of screen, visible in edit mode)
+    PageTabBar *m_pageTabBar = nullptr;
 
     int m_nextId = 1;  // auto-increment for new element IDs
 };

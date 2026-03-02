@@ -35,6 +35,7 @@ private:
     void buildTestPage();
     void toggleEditMode();
     void openPropertyDialog(UiElement *elem);
+    void openPageManager();
 
     /// Try to load layout from the default file path; returns true on success.
     bool loadLayoutIfExists();

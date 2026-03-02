@@ -14,6 +14,8 @@ add_executable(vt_client
     editor/EditorOverlay.cpp
     editor/PropertyDialog.cpp
     editor/LayoutSerializer.cpp
+    editor/PageManagerDialog.cpp
+    editor/PageTabBar.cpp
 )
 
 target_include_directories(vt_client PRIVATE
