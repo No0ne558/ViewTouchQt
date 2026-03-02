@@ -659,6 +659,14 @@ void MainWindow::buildDisplaysPage()
         row->setFontSize(20);
         row->setCornerRadius(6);
         row->setVisible(false);
+
+        // Wire selection handler once — index is fixed per row button.
+        connect(row, &ButtonElement::clicked, this, [this, i]() {
+            if (i < m_displayMgr->count()) {
+                m_selectedDisplayIdx = i;
+                refreshDisplayList();
+            }
+        });
     }
 
     // Action buttons — right column
@@ -938,18 +946,8 @@ void MainWindow::refreshDisplayList()
         }
     }
 
-    // Connect row clicks for selection
-    for (int i = 0; i < 10 && i < displays.size(); ++i) {
-        QString id = QStringLiteral("disp_row_%1").arg(i);
-        auto *row = pg->element(id);
-        if (!row) continue;
-        auto *btn = static_cast<ButtonElement *>(row);
-        disconnect(btn, &ButtonElement::clicked, nullptr, nullptr);
-        connect(btn, &ButtonElement::clicked, this, [this, i]() {
-            m_selectedDisplayIdx = i;
-            refreshDisplayList();
-        });
-    }
+    // Row click handlers are wired once in buildDisplaysPage().
+    // No disconnect/reconnect needed here.
 }
 
 void MainWindow::handleAddDisplay()
