@@ -13,6 +13,7 @@
 #include <QGraphicsScene>
 #include <QGraphicsSceneMouseEvent>
 #include <QGraphicsView>
+#include <QKeyEvent>
 #include <QPen>
 #include <QTimer>
 #include <QToolButton>
@@ -387,6 +388,25 @@ bool EditorOverlay::eventFilter(QObject *watched, QEvent *event)
             elem = dynamic_cast<UiElement *>(item->parentItem());
         if (elem) {
             emit editPropertiesRequested(elem);
+            return true;
+        }
+    }
+
+    // Arrow keys move the selected element (Shift = 1px fine move)
+    if (event->type() == QEvent::KeyPress && m_selected) {
+        auto *ke = static_cast<QKeyEvent *>(event);
+        qreal step = (ke->modifiers() & Qt::ShiftModifier) ? 1.0 : 10.0;
+        QPointF delta;
+        switch (ke->key()) {
+        case Qt::Key_Left:  delta = QPointF(-step, 0); break;
+        case Qt::Key_Right: delta = QPointF( step, 0); break;
+        case Qt::Key_Up:    delta = QPointF(0, -step); break;
+        case Qt::Key_Down:  delta = QPointF(0,  step); break;
+        default: break;
+        }
+        if (!delta.isNull()) {
+            m_selected->setPos(m_selected->pos() + delta);
+            updateHandles();
             return true;
         }
     }
