@@ -16,6 +16,10 @@ PageManagerDialog::PageManagerDialog(LayoutEngine *engine, QWidget *parent)
     : QDialog(parent)
     , m_engine(engine)
 {
+    // Ensure the dialog gets its own title bar so it can be moved,
+    // even when the parent is a frameless fullscreen window.
+    setWindowFlags(windowFlags() | Qt::Dialog | Qt::WindowTitleHint
+                   | Qt::WindowCloseButtonHint);
     setWindowTitle(QStringLiteral("Page Manager"));
     setMinimumSize(400, 350);
 

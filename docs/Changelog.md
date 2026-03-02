@@ -53,6 +53,24 @@ All notable changes to this project will be documented in this file.
 - Fixed Done button crash: deferred `setEditMode(false)` via `QTimer::singleShot(0)`
 - Fixed real-time resize handle updates during drag (EditorOverlay pointer passed to ResizeHandle)
 - Fixed page manager close crash: deferred `manageRequested` signal to prevent widget destruction mid-click
+- Added POS system pages with Login flow
+  - `PinEntryElement`: masked PIN input field with keyboard and keypad support, focus border, placeholder text
+  - `KeypadButtonElement`: sends characters to PinEntry; supports BACK/CLEAR special values, flash feedback
+  - `ActionButtonElement`: navigation button with action types (Login → Tables, Dine-In → Order, To-Go → Order)
+  - System page framework: Login, Tables, and Order pages auto-created on first run
+  - Default Login page: full keypad (0-9, Back, Clear), PIN entry, Login/Dine-In/To-Go action buttons
+  - `PageWidget`: system page flag (`isSystemPage`), new factory methods for all new element types
+  - `LayoutSerializer`: full save/load support for PinEntry, KeypadButton, ActionButton elements
+  - `PropertyDialog`: type-specific property groups for PIN Entry, Keypad Button, Action Button
+  - `LayoutEngine`: signal forwarding for keypad and action events, system/user page helpers
+- Added element type change via Properties dialog
+  - Type selector dropdown replaces static label — all 6 types selectable at any time
+  - Type-specific property groups show/hide dynamically based on selected type
+  - `PageWidget::replaceElementType()` swaps element in-place preserving common properties
+  - Type-specific properties (masked, maxLength, keyValue, actionType) applied after conversion
+- Fixed PropertyDialog and PageManagerDialog not movable when parent is frameless fullscreen
+  - Explicit `Qt::Dialog | Qt::WindowTitleHint | Qt::WindowCloseButtonHint` flags on both dialogs
+- Client always starts on the Login page regardless of layout load order
 
 ## [0.1.0] - 2026-03-01
 - Project scaffold: initial commit

@@ -338,10 +338,8 @@ void MainWindow::ensureSystemPages()
         wirePageKeypad(name);
     }
 
-    // Show Login page as the startup page (unless already showing a page)
-    if (!m_engine->activePage() || m_engine->activePageName() == QStringLiteral("test")) {
-        m_engine->showPage(QStringLiteral("Login"));
-    }
+    // Always start on the Login page.
+    m_engine->showPage(QStringLiteral("Login"));
 }
 
 void MainWindow::buildDefaultLoginPage()
