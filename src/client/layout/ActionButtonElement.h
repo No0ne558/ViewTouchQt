@@ -14,6 +14,7 @@ enum class ActionType {
     Login,    // Navigate to the Tables page
     DineIn,   // Navigate to the Order page
     ToGo,     // Navigate to the Order page
+    Logout,   // Navigate back to the Login page
 };
 
 /// A button that performs a POS navigation action.

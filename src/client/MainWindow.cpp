@@ -530,6 +530,9 @@ void MainWindow::handleAction(const QString &pageName, ActionType action)
     case ActionType::ToGo:
         m_engine->showPage(QStringLiteral("Order"));
         break;
+    case ActionType::Logout:
+        m_engine->showPage(QStringLiteral("Login"));
+        break;
     }
 }
 

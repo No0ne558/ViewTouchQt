@@ -75,6 +75,7 @@ All notable changes to this project will be documented in this file.
 - Removed `+ Label` and `+ Panel` buttons from editor toolbar (use type change in Properties instead)
 - Added right-click to open Properties: right-clicking an element in edit mode opens its property dialog
 - Left-click drag and right-click property editing are now properly separated (no accidental drags on right-click)
+- Added `Logout` action type for ActionButton — navigates back to the Login page
 
 ## [0.1.0] - 2026-03-01
 - Project scaffold: initial commit

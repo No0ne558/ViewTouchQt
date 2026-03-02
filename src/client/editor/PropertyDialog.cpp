@@ -180,6 +180,7 @@ void PropertyDialog::setupUi()
         m_actionTypeCombo->addItem(QStringLiteral("Login (→ Tables)"), static_cast<int>(ActionType::Login));
         m_actionTypeCombo->addItem(QStringLiteral("Dine-In (→ Order)"), static_cast<int>(ActionType::DineIn));
         m_actionTypeCombo->addItem(QStringLiteral("To-Go (→ Order)"), static_cast<int>(ActionType::ToGo));
+        m_actionTypeCombo->addItem(QStringLiteral("Logout (→ Login)"), static_cast<int>(ActionType::Logout));
 
         // If current element IS an ActionButton, load actual value
         if (m_element->elementType() == ElementType::ActionButton) {
