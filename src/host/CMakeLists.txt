@@ -16,7 +16,12 @@ target_sources(vt_host PRIVATE
     # Client sources
     ${CMAKE_SOURCE_DIR}/src/client/PosClient.cpp
     ${CMAKE_SOURCE_DIR}/src/client/MainWindow.cpp
-    ${CMAKE_SOURCE_DIR}/src/client/ButtonItem.cpp
+    ${CMAKE_SOURCE_DIR}/src/client/layout/UiElement.cpp
+    ${CMAKE_SOURCE_DIR}/src/client/layout/ButtonElement.cpp
+    ${CMAKE_SOURCE_DIR}/src/client/layout/LabelElement.cpp
+    ${CMAKE_SOURCE_DIR}/src/client/layout/PanelElement.cpp
+    ${CMAKE_SOURCE_DIR}/src/client/layout/PageWidget.cpp
+    ${CMAKE_SOURCE_DIR}/src/client/layout/LayoutEngine.cpp
 )
 
 target_include_directories(vt_host PRIVATE

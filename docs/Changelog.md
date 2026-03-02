@@ -18,6 +18,15 @@ All notable changes to this project will be documented in this file.
 - Verified remote `vt_client` mirrors host UI as independent client session
 - Fixed fullscreen on XServer XSDL: frameless window + manual screen geometry fallback
 - Added `showEvent` with deferred `fitInView` for reliable scaling on remote X11 displays
+- Added programmatic layout engine (`src/client/layout/`)
+  - `UiElement`: base class with position, size, colour, label, font size, corner radius
+  - `ButtonElement`: touchable button with flash feedback and configurable active colour
+  - `LabelElement`: static text with alignment and optional background
+  - `PanelElement`: background container/divider with optional border
+  - `PageWidget`: named page that owns elements with add/remove/attach/detach
+  - `LayoutEngine`: manages pages, page switching, forwards button clicks
+- Replaced hardcoded `ButtonItem` with layout engine in `MainWindow`
+- Test page demonstrates header panel, title label, two buttons, footer, status label
 
 ## [0.1.0] - 2026-03-01
 - Project scaffold: initial commit

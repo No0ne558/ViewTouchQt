@@ -29,18 +29,33 @@ MainWindow::MainWindow(PosClient *client, QWidget *parent)
 
     setCentralWidget(m_view);
 
-    setupScene();
+    // ── Layout engine ───────────────────────────────────────────────────
+    m_engine = new LayoutEngine(m_scene, this);
+
+    // Forward any button click to the server.
+    connect(m_engine, &LayoutEngine::buttonClicked, this,
+            [this](const QString & /*pageName*/, const QString & /*elementId*/) {
+                m_client->send(MsgType::ButtonPress);
+            });
+
+    // Server ack → flash the button that was pressed.
+    // For now flash all buttons on active page; refine later with per-button ack.
+    connect(m_client, &PosClient::buttonAckReceived, this, [this]() {
+        if (auto *pg = m_engine->activePage()) {
+            for (auto *elem : pg->elements()) {
+                if (elem->elementType() == ElementType::Button) {
+                    static_cast<ButtonElement *>(elem)->flashAck();
+                }
+            }
+        }
+    });
+
+    buildTestPage();
 
     // ── Fullscreen ──────────────────────────────────────────────────────
-    // Remove window decorations (title bar, borders) so the window fills
-    // the entire screen even on minimal WMs like XServer XSDL.
     setWindowFlags(Qt::Window | Qt::FramelessWindowHint);
-
-    // Try the standard fullscreen request first (works on proper WMs).
     setWindowState(Qt::WindowFullScreen);
 
-    // Fallback: manually size to the screen geometry.  This guarantees
-    // fullscreen on XServer XSDL and other bare X11 servers.
     if (QScreen *scr = screen()) {
         setGeometry(scr->geometry());
     }
@@ -49,19 +64,14 @@ MainWindow::MainWindow(PosClient *client, QWidget *parent)
 void MainWindow::resizeEvent(QResizeEvent *event)
 {
     QMainWindow::resizeEvent(event);
-    // Scale the 1920×1080 scene to fill the window, preserving aspect ratio.
     m_view->fitInView(m_scene->sceneRect(), Qt::KeepAspectRatio);
 }
 
 void MainWindow::showEvent(QShowEvent *event)
 {
     QMainWindow::showEvent(event);
-    // Immediate fit for local displays.
     m_view->fitInView(m_scene->sceneRect(), Qt::KeepAspectRatio);
 
-    // Deferred fit — remote X11 (XServer XSDL) may deliver the real
-    // geometry after the initial show.  Re-apply fullscreen geometry
-    // and fitInView to handle late screen-size reports.
     auto applyFullscreen = [this]() {
         if (QScreen *scr = screen()) {
             setGeometry(scr->geometry());
@@ -73,24 +83,53 @@ void MainWindow::showEvent(QShowEvent *event)
     QTimer::singleShot(500, this, applyFullscreen);
 }
 
-void MainWindow::setupScene()
+// ── Test page ───────────────────────────────────────────────────────────────
+
+void MainWindow::buildTestPage()
 {
-    // Centre a 400×120 button in the 1920×1080 design space.
-    constexpr qreal bw = 400;
-    constexpr qreal bh = 120;
-    const qreal bx = (kDesignW - bw) / 2.0;
-    const qreal by = (kDesignH - bh) / 2.0;
+    auto *pg = m_engine->createPage(QStringLiteral("test"));
 
-    m_button = new ButtonItem(bx, by, bw, bh);
-    m_scene->addItem(m_button);
+    // Header panel
+    auto *headerPanel = pg->addPanel(QStringLiteral("header_bg"), 0, 0, 1920, 80);
+    headerPanel->setBgColor(QColor(45, 45, 45));
+    headerPanel->setCornerRadius(0);
 
-    // Button press → send to server.
-    connect(m_button, &ButtonItem::pressed, this, [this]() {
-        m_client->send(MsgType::ButtonPress);
-    });
+    // Title label
+    auto *title = pg->addLabel(QStringLiteral("title"), 20, 10, 600, 60,
+                               QStringLiteral("ViewTouchQt POS"));
+    title->setFontSize(36);
+    title->setTextColor(Qt::white);
+    title->setAlignment(Qt::AlignLeft);
 
-    // Server ack → flash the button (second visual confirmation).
-    connect(m_client, &PosClient::buttonAckReceived, m_button, &ButtonItem::flashAck);
+    // Centre button (same as the original demo button)
+    auto *btn = pg->addButton(QStringLiteral("btn_press"),
+                              760, 480, 400, 120,
+                              QStringLiteral("PRESS"));
+    btn->setBgColor(QColor(160, 160, 160));
+    btn->setFontSize(32);
+
+    // A second button as a demonstration of the layout engine
+    auto *btn2 = pg->addButton(QStringLiteral("btn_demo"),
+                               760, 640, 400, 80,
+                               QStringLiteral("DEMO BUTTON"));
+    btn2->setBgColor(QColor(80, 140, 200));
+    btn2->setTextColor(Qt::white);
+    btn2->setFontSize(24);
+    btn2->setActiveColor(QColor(120, 200, 255));
+
+    // Footer panel
+    auto *footer = pg->addPanel(QStringLiteral("footer_bg"), 0, 1000, 1920, 80);
+    footer->setBgColor(QColor(45, 45, 45));
+    footer->setCornerRadius(0);
+
+    // Status label in footer
+    auto *status = pg->addLabel(QStringLiteral("status"), 20, 1010, 800, 60,
+                                QStringLiteral("Status: Ready"));
+    status->setFontSize(22);
+    status->setTextColor(QColor(150, 255, 150));
+    status->setAlignment(Qt::AlignLeft);
+
+    m_engine->showPage(QStringLiteral("test"));
 }
 
 } // namespace vt

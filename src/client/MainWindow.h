@@ -4,8 +4,8 @@
 #ifndef VT_MAIN_WINDOW_H
 #define VT_MAIN_WINDOW_H
 
-#include "ButtonItem.h"
 #include "PosClient.h"
+#include "layout/LayoutEngine.h"
 
 #include <QGraphicsScene>
 #include <QGraphicsView>
@@ -19,20 +19,23 @@ public:
     /// @param client  The network client (not owned — must outlive this window).
     explicit MainWindow(PosClient *client, QWidget *parent = nullptr);
 
+    /// Access the layout engine for runtime page/element manipulation.
+    LayoutEngine *layoutEngine() { return m_engine; }
+
 protected:
     void resizeEvent(QResizeEvent *event) override;
     void showEvent(QShowEvent *event) override;
 
 private:
-    void setupScene();
+    void buildTestPage();
 
     // Design resolution — all scene items are placed in this coordinate space.
     static constexpr qreal kDesignW = 1920.0;
     static constexpr qreal kDesignH = 1080.0;
 
-    QGraphicsView  *m_view  = nullptr;
-    QGraphicsScene *m_scene = nullptr;
-    ButtonItem     *m_button = nullptr;
+    QGraphicsView  *m_view   = nullptr;
+    QGraphicsScene *m_scene  = nullptr;
+    LayoutEngine   *m_engine = nullptr;
     PosClient      *m_client = nullptr;
 };
 
