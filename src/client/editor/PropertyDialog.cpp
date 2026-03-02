@@ -76,6 +76,23 @@ void PropertyDialog::setupUi()
     m_fontSizeBox->setValue(m_element->fontSize());
     textForm->addRow(QStringLiteral("Font size:"), m_fontSizeBox);
 
+    m_fontFamilyCombo = new QComboBox;
+    for (const QString &fam : UiElement::availableFontFamilies())
+        m_fontFamilyCombo->addItem(fam);
+    // Set current family
+    int famIdx = m_fontFamilyCombo->findText(m_element->fontFamily());
+    if (famIdx >= 0)
+        m_fontFamilyCombo->setCurrentIndex(famIdx);
+    else {
+        m_fontFamilyCombo->addItem(m_element->fontFamily());
+        m_fontFamilyCombo->setCurrentIndex(m_fontFamilyCombo->count() - 1);
+    }
+    textForm->addRow(QStringLiteral("Font:"), m_fontFamilyCombo);
+
+    m_fontBoldChk = new QCheckBox(QStringLiteral("Bold"));
+    m_fontBoldChk->setChecked(m_element->fontBold());
+    textForm->addRow(m_fontBoldChk);
+
     mainLayout->addWidget(textGroup);
 
     // ── Position / size group ───────────────────────────────────────────
@@ -244,6 +261,8 @@ void PropertyDialog::applyChanges()
 
     m_element->setLabel(m_labelEdit->text());
     m_element->setFontSize(m_fontSizeBox->value());
+    m_element->setFontFamily(m_fontFamilyCombo->currentText());
+    m_element->setFontBold(m_fontBoldChk->isChecked());
     m_element->moveTo(m_xBox->value(), m_yBox->value());
     m_element->resizeTo(m_wBox->value(), m_hBox->value());
     m_element->setBgColor(m_bgColor);

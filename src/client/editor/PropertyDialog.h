@@ -56,6 +56,8 @@ private:
     QLineEdit *m_idEdit       = nullptr;
     QLineEdit *m_labelEdit    = nullptr;
     QSpinBox  *m_fontSizeBox  = nullptr;
+    QComboBox *m_fontFamilyCombo = nullptr;
+    QCheckBox *m_fontBoldChk  = nullptr;
     QSpinBox  *m_xBox         = nullptr;
     QSpinBox  *m_yBox         = nullptr;
     QSpinBox  *m_wBox         = nullptr;

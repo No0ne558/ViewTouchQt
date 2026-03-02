@@ -5,6 +5,7 @@
 #define VT_UI_ELEMENT_H
 
 #include <QColor>
+#include <QFont>
 #include <QGraphicsObject>
 #include <QString>
 #include <QTimer>
@@ -73,6 +74,18 @@ public:
     int fontSize() const { return m_fontSize; }
     void setFontSize(int size);
 
+    const QString &fontFamily() const { return m_fontFamily; }
+    void setFontFamily(const QString &family);
+
+    bool fontBold() const { return m_fontBold; }
+    void setFontBold(bool bold);
+
+    /// Build the QFont that this element should use for painting.
+    QFont buildFont() const;
+
+    /// Return a curated list of POS-friendly font families.
+    static QStringList availableFontFamilies();
+
     /// Whether this element is inherited when another page inherits this page.
     bool isInheritable() const { return m_inheritable; }
     void setInheritable(bool on) { m_inheritable = on; }
@@ -92,6 +105,8 @@ protected:
     QColor  m_textColor    = Qt::black;
     qreal   m_cornerRadius = 12.0;
     int     m_fontSize     = 24;
+    QString m_fontFamily   = QStringLiteral("Sans");
+    bool    m_fontBold     = true;
     bool    m_inheritable  = false;
 };
 

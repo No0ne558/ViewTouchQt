@@ -44,8 +44,7 @@ void KeypadButtonElement::paint(QPainter *painter,
     painter->setPen(QPen(QColor(80, 80, 80), 1));
     painter->drawRoundedRect(m_rect.adjusted(1, 1, -1, -1), m_cornerRadius, m_cornerRadius);
 
-    QFont font(QStringLiteral("Sans"), m_fontSize, QFont::Bold);
-    painter->setFont(font);
+    painter->setFont(buildFont());
     painter->setPen(m_textColor);
     painter->drawText(m_rect, Qt::AlignCenter, m_label);
 }

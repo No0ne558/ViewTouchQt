@@ -31,8 +31,7 @@ void LabelElement::paint(QPainter *painter,
         painter->drawRoundedRect(m_rect, m_cornerRadius, m_cornerRadius);
     }
 
-    QFont font(QStringLiteral("Sans"), m_fontSize, QFont::Bold);
-    painter->setFont(font);
+    painter->setFont(buildFont());
     painter->setPen(m_textColor);
     painter->drawText(m_rect, static_cast<int>(m_alignment) | Qt::AlignVCenter,
                       m_label);

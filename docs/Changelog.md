@@ -82,6 +82,15 @@ All notable changes to this project will be documented in this file.
   - Delete key removes all selected elements at once
   - Resize handles shown only for single-element selection
   - Ctrl+click on empty space preserves existing selection while starting rubber-band
+- Added configurable font styles for POS system elements
+  - `UiElement::fontFamily` property (default: "Sans") with curated POS-friendly font list
+  - `UiElement::fontBold` toggle (default: on)
+  - `buildFont()` helper replaces hardcoded QFont construction in all 6 element types
+  - PropertyDialog: font family combo (17 options) and bold checkbox in Text group
+  - LayoutSerializer: full save/load for fontFamily and fontBold
+  - Available fonts: Sans, Noto Sans, Open Sans, Montserrat, Liberation Sans, Cantarell,
+    DejaVu Sans, Droid Sans, Comfortaa, Carlito, Caladea, Serif, Liberation Serif,
+    Nimbus Roman, Monospace, Liberation Mono, Source Code Pro
 - Added `Logout` action type for ActionButton — navigates back to the Login page
 - Added `Navigation` action type for ActionButton — navigate to any arbitrary page by name
   - Target page selectable via combo box in PropertyDialog when Navigation action is selected

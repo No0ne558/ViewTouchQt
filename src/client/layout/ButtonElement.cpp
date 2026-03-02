@@ -41,8 +41,7 @@ void ButtonElement::paint(QPainter *painter,
     painter->setPen(QPen(Qt::black, 3));
     painter->drawRoundedRect(m_rect, m_cornerRadius, m_cornerRadius);
 
-    QFont font(QStringLiteral("Sans"), m_fontSize, QFont::Bold);
-    painter->setFont(font);
+    painter->setFont(buildFont());
     painter->setPen(m_textColor);
     painter->drawText(m_rect, Qt::AlignCenter, m_label);
 }

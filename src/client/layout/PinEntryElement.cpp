@@ -49,7 +49,7 @@ void PinEntryElement::paint(QPainter *painter,
                            : m_pin;
     }
 
-    QFont font(QStringLiteral("Sans"), m_fontSize, QFont::Bold);
+    QFont font = buildFont();
     painter->setFont(font);
 
     // Add some left padding

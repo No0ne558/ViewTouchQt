@@ -70,4 +70,45 @@ void UiElement::setFontSize(int size)
     update();
 }
 
+void UiElement::setFontFamily(const QString &family)
+{
+    m_fontFamily = family;
+    update();
+}
+
+void UiElement::setFontBold(bool bold)
+{
+    m_fontBold = bold;
+    update();
+}
+
+QFont UiElement::buildFont() const
+{
+    QFont f(m_fontFamily, m_fontSize, m_fontBold ? QFont::Bold : QFont::Normal);
+    return f;
+}
+
+QStringList UiElement::availableFontFamilies()
+{
+    return {
+        QStringLiteral("Sans"),
+        QStringLiteral("Noto Sans"),
+        QStringLiteral("Open Sans"),
+        QStringLiteral("Montserrat"),
+        QStringLiteral("Liberation Sans"),
+        QStringLiteral("Cantarell"),
+        QStringLiteral("DejaVu Sans"),
+        QStringLiteral("Droid Sans"),
+        QStringLiteral("Comfortaa"),
+        QStringLiteral("Carlito"),
+        QStringLiteral("Caladea"),
+        QStringLiteral("Serif"),
+        QStringLiteral("Liberation Serif"),
+        QStringLiteral("Nimbus Roman"),
+        QStringLiteral("Monospace"),
+        QStringLiteral("Liberation Mono"),
+        QStringLiteral("Source Code Pro"),
+    };
+}
+
 } // namespace vt

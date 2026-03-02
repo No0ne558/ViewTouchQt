@@ -114,6 +114,8 @@ QJsonObject LayoutSerializer::serializeElement(const UiElement *elem)
     obj[QStringLiteral("bgColor")]      = elem->bgColor().name(QColor::HexArgb);
     obj[QStringLiteral("textColor")]    = elem->textColor().name(QColor::HexArgb);
     obj[QStringLiteral("fontSize")]     = elem->fontSize();
+    obj[QStringLiteral("fontFamily")]   = elem->fontFamily();
+    obj[QStringLiteral("fontBold")]     = elem->fontBold();
     obj[QStringLiteral("cornerRadius")] = elem->cornerRadius();
 
     if (elem->isInheritable())
@@ -224,6 +226,8 @@ bool LayoutSerializer::deserializeElement(PageWidget *page, const QJsonObject &o
     QColor bgColor    = QColor(obj[QStringLiteral("bgColor")].toString(QStringLiteral("#a0a0a0")));
     QColor textColor  = QColor(obj[QStringLiteral("textColor")].toString(QStringLiteral("#000000")));
     int fontSize      = obj[QStringLiteral("fontSize")].toInt(24);
+    QString fontFamily = obj[QStringLiteral("fontFamily")].toString(QStringLiteral("Sans"));
+    bool fontBold      = obj[QStringLiteral("fontBold")].toBool(true);
     qreal cornerRadius = obj[QStringLiteral("cornerRadius")].toDouble(12);
     bool inheritable   = obj[QStringLiteral("inheritable")].toBool(false);
 
@@ -233,6 +237,8 @@ bool LayoutSerializer::deserializeElement(PageWidget *page, const QJsonObject &o
         btn->setBgColor(bgColor);
         btn->setTextColor(textColor);
         btn->setFontSize(fontSize);
+        btn->setFontFamily(fontFamily);
+        btn->setFontBold(fontBold);
         btn->setCornerRadius(cornerRadius);
         btn->setInheritable(inheritable);
         if (obj.contains(QStringLiteral("activeColor")))
@@ -243,6 +249,8 @@ bool LayoutSerializer::deserializeElement(PageWidget *page, const QJsonObject &o
         lbl->setBgColor(bgColor);
         lbl->setTextColor(textColor);
         lbl->setFontSize(fontSize);
+        lbl->setFontFamily(fontFamily);
+        lbl->setFontBold(fontBold);
         lbl->setCornerRadius(cornerRadius);
         lbl->setInheritable(inheritable);
         if (obj.contains(QStringLiteral("alignment")))
@@ -265,6 +273,8 @@ bool LayoutSerializer::deserializeElement(PageWidget *page, const QJsonObject &o
         pin->setBgColor(bgColor);
         pin->setTextColor(textColor);
         pin->setFontSize(fontSize);
+        pin->setFontFamily(fontFamily);
+        pin->setFontBold(fontBold);
         pin->setCornerRadius(cornerRadius);
         pin->setInheritable(inheritable);
         pin->setLabel(label);  // placeholder text
@@ -278,6 +288,8 @@ bool LayoutSerializer::deserializeElement(PageWidget *page, const QJsonObject &o
         kpd->setBgColor(bgColor);
         kpd->setTextColor(textColor);
         kpd->setFontSize(fontSize);
+        kpd->setFontFamily(fontFamily);
+        kpd->setFontBold(fontBold);
         kpd->setCornerRadius(cornerRadius);
         kpd->setInheritable(inheritable);
         if (obj.contains(QStringLiteral("keyValue")))
@@ -291,6 +303,8 @@ bool LayoutSerializer::deserializeElement(PageWidget *page, const QJsonObject &o
         act->setBgColor(bgColor);
         act->setTextColor(textColor);
         act->setFontSize(fontSize);
+        act->setFontFamily(fontFamily);
+        act->setFontBold(fontBold);
         act->setCornerRadius(cornerRadius);
         act->setInheritable(inheritable);
         if (obj.contains(QStringLiteral("targetPage")))
