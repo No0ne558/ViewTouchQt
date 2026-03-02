@@ -380,12 +380,16 @@ void MainWindow::ensureSystemPages()
         m_engine->page(QStringLiteral("Order"))->setSystemPage(true);
     }
 
-    // ── Displays page (always rebuilt to ensure latest layout) ─────────
+    // ── Displays / DisplayEdit pages (always rebuilt to ensure latest layout)
+    // Switch away from display pages first so removePage won't refuse.
+    if (m_engine->activePage() &&
+        (m_engine->activePageName() == QStringLiteral("Displays") ||
+         m_engine->activePageName() == QStringLiteral("DisplayEdit"))) {
+        m_engine->showPage(QStringLiteral("Login"));
+    }
     m_engine->removePage(QStringLiteral("Displays"));
-    buildDisplaysPage();
-
-    // ── DisplayEdit page (always rebuilt to ensure latest layout) ────────
     m_engine->removePage(QStringLiteral("DisplayEdit"));
+    buildDisplaysPage();
     buildDisplayEditPage();
 
     // Wire up local keypad → PIN entry connections for all pages
@@ -552,8 +556,10 @@ void MainWindow::handleAction(const QString &pageName, ActionType action, const 
     auto *pg = m_engine->page(pageName);
     if (!pg) return;
 
-    // Login-page PIN validation / clearing (only applies to Login actions)
-    if (action == ActionType::Login) {
+    // PIN validation / clearing (Login, DineIn, ToGo all require a PIN)
+    if (action == ActionType::Login ||
+        action == ActionType::DineIn ||
+        action == ActionType::ToGo) {
         PinEntryElement *pinEntry = nullptr;
         for (UiElement *elem : pg->elements()) {
             if (elem->elementType() == ElementType::PinEntry) {
