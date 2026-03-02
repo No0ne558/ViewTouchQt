@@ -11,7 +11,9 @@
 
 #include <QGraphicsScene>
 #include <QGraphicsView>
+#include <QHash>
 #include <QMainWindow>
+#include <QProcess>
 
 namespace vt {
 
@@ -60,6 +62,11 @@ private:
     void handleToggleDisplay();
     void handleTestPrinter();
     void handleDisplayDone();
+    void launchDisplayClient(const DisplayConfig &cfg);
+    void stopDisplayClient(const QString &uuid);
+    void launchAllActiveDisplays();
+    QString findClientBinary() const;
+    QString detectLocalIp() const;
 
     /// Try to load layout from the default file path; returns true on success.
     bool loadLayoutIfExists();
@@ -80,6 +87,7 @@ private:
     QString          m_lastPressedButtonId;
     int              m_selectedDisplayIdx = -1;   // index in DisplayManager
     QString          m_editingDisplayUuid;        // UUID of display being edited
+    QHash<QString, QProcess *> m_displayProcesses; // uuid → vt_client process
 };
 
 } // namespace vt

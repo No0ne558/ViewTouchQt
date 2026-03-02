@@ -17,6 +17,8 @@
 #include <QJsonObject>
 #include <QKeyEvent>
 #include <QMessageBox>
+#include <QNetworkInterface>
+#include <QProcess>
 #include <QResizeEvent>
 #include <QScreen>
 #include <QShowEvent>
@@ -132,6 +134,9 @@ MainWindow::MainWindow(PosClient *client, QWidget *parent)
         QJsonObject root = LayoutSerializer::serialize(m_engine);
         QJsonDocument doc(root);
         emit layoutChanged(doc.toJson(QJsonDocument::Compact));
+
+        // Launch remote clients for all active displays once the server is ready.
+        launchAllActiveDisplays();
     });
 }
 
@@ -1029,7 +1034,9 @@ void MainWindow::handleRemoveDisplay()
     auto *cfg = m_displayMgr->displayAt(m_selectedDisplayIdx);
     if (cfg) {
         QString name = cfg->name;
-        m_displayMgr->removeDisplay(cfg->uuid);
+        QString uuid = cfg->uuid;
+        stopDisplayClient(uuid);
+        m_displayMgr->removeDisplay(uuid);
         m_displayMgr->saveToFile(DisplayManager::defaultFilePath());
         m_selectedDisplayIdx = -1;
         refreshDisplayList();
@@ -1053,6 +1060,13 @@ void MainWindow::handleToggleDisplay()
     if (cfg) {
         bool newState = m_displayMgr->toggleActive(cfg->uuid);
         m_displayMgr->saveToFile(DisplayManager::defaultFilePath());
+
+        // Launch or stop the remote client process.
+        if (newState && !cfg->ipAddress.isEmpty())
+            launchDisplayClient(*cfg);
+        else
+            stopDisplayClient(cfg->uuid);
+
         refreshDisplayList();
 
         if (auto *pg = m_engine->page(QStringLiteral("Displays")))
@@ -1112,6 +1126,132 @@ void MainWindow::handleDisplayDone()
 
     if (auto *s = m_engine->page(QStringLiteral("Displays"))->element(QStringLiteral("disp_status")))
         s->setLabel(QStringLiteral("Display saved."));
+}
+
+// ── Remote display process management ───────────────────────────────────────
+
+QString MainWindow::findClientBinary() const
+{
+    // Look for vt_client next to the running executable (../client/vt_client
+    // relative to the host binary, or same directory).
+    QDir appDir(QCoreApplication::applicationDirPath());
+
+    // Try sibling client dir (build tree layout: build/src/host/vt_host → build/src/client/vt_client)
+    QString sibling = appDir.absoluteFilePath(QStringLiteral("../client/vt_client"));
+    if (QFile::exists(sibling))
+        return sibling;
+
+    // Try same directory
+    QString sameDir = appDir.absoluteFilePath(QStringLiteral("vt_client"));
+    if (QFile::exists(sameDir))
+        return sameDir;
+
+    // Try PATH
+    QString inPath = QStandardPaths::findExecutable(QStringLiteral("vt_client"));
+    if (!inPath.isEmpty())
+        return inPath;
+
+    return {};
+}
+
+QString MainWindow::detectLocalIp() const
+{
+    // Find the first non-loopback IPv4 address on a running interface.
+    const auto allIfaces = QNetworkInterface::allInterfaces();
+    for (const auto &iface : allIfaces) {
+        if (iface.flags().testFlag(QNetworkInterface::IsLoopBack))
+            continue;
+        if (!iface.flags().testFlag(QNetworkInterface::IsUp) ||
+            !iface.flags().testFlag(QNetworkInterface::IsRunning))
+            continue;
+        const auto entries = iface.addressEntries();
+        for (const auto &entry : entries) {
+            QHostAddress addr = entry.ip();
+            if (addr.protocol() == QAbstractSocket::IPv4Protocol)
+                return addr.toString();
+        }
+    }
+    return QStringLiteral("127.0.0.1");
+}
+
+void MainWindow::launchDisplayClient(const DisplayConfig &cfg)
+{
+    // Don't double-launch.
+    if (m_displayProcesses.contains(cfg.uuid)) {
+        auto *existing = m_displayProcesses.value(cfg.uuid);
+        if (existing->state() != QProcess::NotRunning)
+            return;
+        // Previous process is dead — clean up and relaunch.
+        existing->deleteLater();
+        m_displayProcesses.remove(cfg.uuid);
+    }
+
+    QString clientBin = findClientBinary();
+    if (clientBin.isEmpty()) {
+        qWarning() << "[display] Cannot find vt_client binary";
+        return;
+    }
+
+    QString serverIp = detectLocalIp();
+
+    auto *proc = new QProcess(this);
+
+    // Set DISPLAY to the remote X server and force xcb platform.
+    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+    env.insert(QStringLiteral("DISPLAY"), cfg.ipAddress + QStringLiteral(":0"));
+    env.insert(QStringLiteral("QT_XCB_NO_XI2"), QStringLiteral("1"));
+    proc->setProcessEnvironment(env);
+
+    QStringList args;
+    args << QStringLiteral("-platform") << QStringLiteral("xcb")
+         << QStringLiteral("-s") << serverIp
+         << QStringLiteral("-p") << QString::number(kDefaultPort);
+
+    connect(proc, &QProcess::errorOccurred, this, [this, uuid = cfg.uuid, name = cfg.name](QProcess::ProcessError err) {
+        qWarning() << "[display] Process error for" << name << ":" << err;
+        if (auto *pg = m_engine->page(QStringLiteral("Displays")))
+            if (auto *s = pg->element(QStringLiteral("disp_status")))
+                s->setLabel(name + QStringLiteral(" — failed to launch client"));
+    });
+
+    connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+            this, [this, uuid = cfg.uuid, name = cfg.name](int exitCode, QProcess::ExitStatus status) {
+        qInfo() << "[display] Client for" << name << "exited:" << exitCode << status;
+        if (m_displayProcesses.contains(uuid)) {
+            m_displayProcesses.value(uuid)->deleteLater();
+            m_displayProcesses.remove(uuid);
+        }
+    });
+
+    qInfo() << "[display] Launching client for" << cfg.name
+            << "on DISPLAY=" << cfg.ipAddress + ":0"
+            << "server=" << serverIp;
+    proc->start(clientBin, args);
+    m_displayProcesses.insert(cfg.uuid, proc);
+}
+
+void MainWindow::stopDisplayClient(const QString &uuid)
+{
+    auto *proc = m_displayProcesses.value(uuid, nullptr);
+    if (!proc)
+        return;
+
+    if (proc->state() != QProcess::NotRunning) {
+        proc->terminate();
+        if (!proc->waitForFinished(3000))
+            proc->kill();
+    }
+    proc->deleteLater();
+    m_displayProcesses.remove(uuid);
+}
+
+void MainWindow::launchAllActiveDisplays()
+{
+    const auto &displays = m_displayMgr->displays();
+    for (const auto &cfg : displays) {
+        if (cfg.active && !cfg.ipAddress.isEmpty())
+            launchDisplayClient(cfg);
+    }
 }
 
 // ── Layout sync from server ─────────────────────────────────────────────────
