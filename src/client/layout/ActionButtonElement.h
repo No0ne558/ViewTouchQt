@@ -23,6 +23,7 @@ enum class ActionType {
     ToggleDisplay,  // Activate/Deactivate selected display
     TestPrinter,    // Send a test print to the display's printer
     DisplayDone,    // Save and return from DisplayEdit
+    ShowVersion,    // Show program version info
 };
 
 /// A button that performs a POS navigation action.

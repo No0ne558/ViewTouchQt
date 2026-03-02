@@ -211,6 +211,7 @@ void PropertyDialog::setupUi()
         m_actionTypeCombo->addItem(QStringLiteral("Toggle Display"), static_cast<int>(ActionType::ToggleDisplay));
         m_actionTypeCombo->addItem(QStringLiteral("Test Printer"), static_cast<int>(ActionType::TestPrinter));
         m_actionTypeCombo->addItem(QStringLiteral("Display Done"), static_cast<int>(ActionType::DisplayDone));
+        m_actionTypeCombo->addItem(QStringLiteral("Show Version"), static_cast<int>(ActionType::ShowVersion));
 
         m_navTargetCombo = new QComboBox;
         m_navTargetCombo->setToolTip(QStringLiteral("Target page for Navigation action."));

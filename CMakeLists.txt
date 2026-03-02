@@ -17,6 +17,29 @@ set(CMAKE_AUTORCC ON)          # Qt resource compiler
 # ----- Find Qt 6 -------------------------------------------------------------
 find_package(Qt6 6.5 REQUIRED COMPONENTS Widgets Network)
 
+# ----- Version info (git hash + build date) -----------------------------------
+execute_process(
+    COMMAND git describe --tags --always --dirty
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE VT_GIT_HASH
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET
+)
+if(NOT VT_GIT_HASH)
+    set(VT_GIT_HASH "unknown")
+endif()
+
+string(TIMESTAMP VT_BUILD_DATE "%Y-%m-%d %H:%M" UTC)
+
+configure_file(
+    ${CMAKE_SOURCE_DIR}/src/common/Version.h.in
+    ${CMAKE_BINARY_DIR}/generated/Version.h
+    @ONLY
+)
+
+# Make the generated header available to all targets.
+include_directories(${CMAKE_BINARY_DIR}/generated)
+
 # ----- Subdirectories ---------------------------------------------------------
 add_subdirectory(src/common)
 add_subdirectory(src/server)
