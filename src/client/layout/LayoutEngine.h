@@ -5,7 +5,6 @@
 #define VT_LAYOUT_ENGINE_H
 
 #include "PageWidget.h"
-#include "ActionButtonElement.h"
 
 #include <QGraphicsScene>
 #include <QHash>
@@ -73,12 +72,8 @@ signals:
 
     /// Forwarded: any button on any page was clicked.
     void buttonClicked(const QString &pageName, const QString &elementId);
-
-    /// Forwarded: a keypad button was pressed on a page.
-    void keypadPressed(const QString &pageName, const QString &value);
-
-    /// Forwarded: an action button was triggered on a page.
-    void actionTriggered(const QString &pageName, vt::ActionType action, const QString &targetPage);
+    /// Forwarded: a keypad button was pressed on a page. (removed)
+    /// Forwarded: an action button was triggered on a page. (removed)
 
 private:
     /// Attach inheritable elements from the parent page (if any).

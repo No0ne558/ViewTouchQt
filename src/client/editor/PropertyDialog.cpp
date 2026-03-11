@@ -2,9 +2,6 @@
 // src/client/editor/PropertyDialog.cpp
 
 #include "PropertyDialog.h"
-#include "../layout/PinEntryElement.h"
-#include "../layout/KeypadButtonElement.h"
-#include "../layout/ActionButtonElement.h"
 
 #include <QColorDialog>
 #include <QFormLayout>
@@ -47,14 +44,11 @@ void PropertyDialog::setupUi()
     idForm->addRow(QStringLiteral("ID:"), m_idEdit);
 
     m_typeCombo = new QComboBox;
-    m_typeCombo->addItem(QStringLiteral("Button"),        static_cast<int>(ElementType::Button));
-    m_typeCombo->addItem(QStringLiteral("Label"),         static_cast<int>(ElementType::Label));
-    m_typeCombo->addItem(QStringLiteral("Panel"),         static_cast<int>(ElementType::Panel));
-    m_typeCombo->addItem(QStringLiteral("PIN Entry"),     static_cast<int>(ElementType::PinEntry));
-    m_typeCombo->addItem(QStringLiteral("Keypad Button"), static_cast<int>(ElementType::KeypadButton));
-    m_typeCombo->addItem(QStringLiteral("Action Button"), static_cast<int>(ElementType::ActionButton));
-    m_typeCombo->addItem(QStringLiteral("Info Label"),    static_cast<int>(ElementType::InfoLabel));
-    m_typeCombo->setCurrentIndex(static_cast<int>(m_element->elementType()));
+    // Only allow Button type in the simplified editor.
+    m_typeCombo->addItem(QStringLiteral("Button"), static_cast<int>(ElementType::Button));
+    // Ensure combo index is valid (default to Button)
+    int idx = m_typeCombo->findData(static_cast<int>(ElementType::Button));
+    m_typeCombo->setCurrentIndex(idx >= 0 ? idx : 0);
     connect(m_typeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &PropertyDialog::onTypeChanged);
     idForm->addRow(QStringLiteral("Type:"), m_typeCombo);
@@ -171,94 +165,10 @@ void PropertyDialog::setupUi()
 
     // ── Type-specific groups (always created, shown/hidden by type) ─────
 
-    // PIN Entry group
-    {
-        m_pinGroup = new QGroupBox(QStringLiteral("PIN Entry"));
-        auto *pinForm  = new QFormLayout(m_pinGroup);
+    // Type-specific groups removed — editor only supports Button elements.
 
-        m_maskedCheck = new QCheckBox(QStringLiteral("Mask input (show dots)"));
-        m_maskedCheck->setChecked(true);   // default
-        pinForm->addRow(m_maskedCheck);
-
-        m_maxLengthBox = new QSpinBox;
-        m_maxLengthBox->setRange(0, 32);
-        m_maxLengthBox->setValue(8);   // default
-        m_maxLengthBox->setSpecialValueText(QStringLiteral("Unlimited"));
-        pinForm->addRow(QStringLiteral("Max length:"), m_maxLengthBox);
-
-        // If current element IS a PinEntry, load actual values
-        if (m_element->elementType() == ElementType::PinEntry) {
-            auto *pin = static_cast<PinEntryElement *>(m_element);
-            m_maskedCheck->setChecked(pin->masked());
-            m_maxLengthBox->setValue(pin->maxLength());
-        }
-
-        mainLayout->addWidget(m_pinGroup);
-    }
-
-    // Keypad Button group
-    {
-        m_kpdGroup = new QGroupBox(QStringLiteral("Keypad Button"));
-        auto *kpdForm  = new QFormLayout(m_kpdGroup);
-
-        m_keyValueEdit = new QLineEdit;
-        m_keyValueEdit->setPlaceholderText(QStringLiteral("Uses label if empty. BACK or CLEAR for special."));
-
-        // If current element IS a KeypadButton, load actual value
-        if (m_element->elementType() == ElementType::KeypadButton) {
-            auto *kpd = static_cast<KeypadButtonElement *>(m_element);
-            m_keyValueEdit->setText(kpd->keyValue());
-        }
-
-        kpdForm->addRow(QStringLiteral("Key value:"), m_keyValueEdit);
-        mainLayout->addWidget(m_kpdGroup);
-    }
-
-    // Action Button group
-    {
-        m_actGroup = new QGroupBox(QStringLiteral("Action Button"));
-        auto *actForm  = new QFormLayout(m_actGroup);
-
-        m_actionTypeCombo = new QComboBox;
-        m_actionTypeCombo->addItem(QStringLiteral("Login (→ Tables)"), static_cast<int>(ActionType::Login));
-        m_actionTypeCombo->addItem(QStringLiteral("Dine-In (→ Order)"), static_cast<int>(ActionType::DineIn));
-        m_actionTypeCombo->addItem(QStringLiteral("To-Go (→ Order)"), static_cast<int>(ActionType::ToGo));
-        m_actionTypeCombo->addItem(QStringLiteral("Logout (→ Login)"), static_cast<int>(ActionType::Logout));
-        m_actionTypeCombo->addItem(QStringLiteral("Navigation (→ Page…)"), static_cast<int>(ActionType::Navigation));
-        m_actionTypeCombo->addItem(QStringLiteral("Show Displays"), static_cast<int>(ActionType::ShowDisplays));
-        m_actionTypeCombo->addItem(QStringLiteral("Add Display"), static_cast<int>(ActionType::AddDisplay));
-        m_actionTypeCombo->addItem(QStringLiteral("Edit Display"), static_cast<int>(ActionType::EditDisplay));
-        m_actionTypeCombo->addItem(QStringLiteral("Remove Display"), static_cast<int>(ActionType::RemoveDisplay));
-        m_actionTypeCombo->addItem(QStringLiteral("Toggle Display"), static_cast<int>(ActionType::ToggleDisplay));
-        m_actionTypeCombo->addItem(QStringLiteral("Test Printer"), static_cast<int>(ActionType::TestPrinter));
-        m_actionTypeCombo->addItem(QStringLiteral("Display Done"), static_cast<int>(ActionType::DisplayDone));
-
-        m_navTargetCombo = new QComboBox;
-        m_navTargetCombo->setToolTip(QStringLiteral("Target page for Navigation action."));
-
-        // If current element IS an ActionButton, load actual value
-        if (m_element->elementType() == ElementType::ActionButton) {
-            auto *act = static_cast<ActionButtonElement *>(m_element);
-            int idx = m_actionTypeCombo->findData(static_cast<int>(act->actionType()));
-            if (idx >= 0)
-                m_actionTypeCombo->setCurrentIndex(idx);
-        }
-
-        // Show/hide target combo based on selected action type
-        connect(m_actionTypeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-                this, [this]() {
-                    auto selAction = static_cast<ActionType>(m_actionTypeCombo->currentData().toInt());
-                    m_navTargetCombo->setVisible(selAction == ActionType::Navigation);
-                    adjustSize();
-                });
-
-        actForm->addRow(QStringLiteral("Action:"), m_actionTypeCombo);
-        actForm->addRow(QStringLiteral("Target page:"), m_navTargetCombo);
-        mainLayout->addWidget(m_actGroup);
-    }
-
-    // Show/hide the correct groups for the current type
-    onTypeChanged(m_typeCombo->currentIndex());
+    // Only Button type supported; nothing to toggle.
+    adjustSize();
 
     // ── Buttons ─────────────────────────────────────────────────────────
     auto *buttons = new QDialogButtonBox(
@@ -310,25 +220,7 @@ void PropertyDialog::applyChanges()
 
     // ── Type-specific properties (only apply if type NOT changing) ───────
     if (!typeChanged()) {
-        if (m_element->elementType() == ElementType::PinEntry) {
-            auto *pin = static_cast<PinEntryElement *>(m_element);
-            if (m_maskedCheck)
-                pin->setMasked(m_maskedCheck->isChecked());
-            if (m_maxLengthBox)
-                pin->setMaxLength(m_maxLengthBox->value());
-        }
-        if (m_element->elementType() == ElementType::KeypadButton) {
-            auto *kpd = static_cast<KeypadButtonElement *>(m_element);
-            if (m_keyValueEdit)
-                kpd->setKeyValue(m_keyValueEdit->text());
-        }
-        if (m_element->elementType() == ElementType::ActionButton) {
-            auto *act = static_cast<ActionButtonElement *>(m_element);
-            if (m_actionTypeCombo)
-                act->setActionType(static_cast<ActionType>(m_actionTypeCombo->currentData().toInt()));
-            if (m_navTargetCombo && act->actionType() == ActionType::Navigation)
-                act->setTargetPage(m_navTargetCombo->currentText());
-        }
+        // No additional type-specific properties to apply (only Button supported).
     }
 
     accept();
@@ -337,45 +229,13 @@ void PropertyDialog::applyChanges()
 void PropertyDialog::onTypeChanged(int index)
 {
     Q_UNUSED(index);
-    auto selectedType = static_cast<ElementType>(m_typeCombo->currentData().toInt());
-
-    m_pinGroup->setVisible(selectedType == ElementType::PinEntry);
-    m_kpdGroup->setVisible(selectedType == ElementType::KeypadButton);
-    m_actGroup->setVisible(selectedType == ElementType::ActionButton);
-
-    // Also toggle nav target within the action group
-    if (m_navTargetCombo && selectedType == ElementType::ActionButton) {
-        auto selAction = static_cast<ActionType>(m_actionTypeCombo->currentData().toInt());
-        m_navTargetCombo->setVisible(selAction == ActionType::Navigation);
-    }
-
-    // Resize the dialog to fit the visible content
+    // No-op: only Button type is supported in this simplified editor.
     adjustSize();
-}
-
-bool PropertyDialog::pinMasked() const
-{
-    return m_maskedCheck ? m_maskedCheck->isChecked() : true;
-}
-
-int PropertyDialog::pinMaxLength() const
-{
-    return m_maxLengthBox ? m_maxLengthBox->value() : 8;
-}
-
-QString PropertyDialog::keypadValue() const
-{
-    return m_keyValueEdit ? m_keyValueEdit->text() : QString();
 }
 
 int PropertyDialog::actionTypeValue() const
 {
     return m_actionTypeCombo ? m_actionTypeCombo->currentData().toInt() : 0;
-}
-
-QString PropertyDialog::targetPage() const
-{
-    return m_navTargetCombo ? m_navTargetCombo->currentText() : QString();
 }
 
 bool PropertyDialog::inheritable() const
@@ -385,23 +245,9 @@ bool PropertyDialog::inheritable() const
 
 void PropertyDialog::setPageNames(const QStringList &names)
 {
-    if (!m_navTargetCombo) return;
-    m_navTargetCombo->clear();
-    for (const QString &n : names)
-        m_navTargetCombo->addItem(n);
-
-    // If the element is already a Navigation action button, pre-select target
-    if (m_element->elementType() == ElementType::ActionButton) {
-        auto *act = static_cast<ActionButtonElement *>(m_element);
-        if (act->actionType() == ActionType::Navigation && !act->targetPage().isEmpty()) {
-            int idx = m_navTargetCombo->findText(act->targetPage());
-            if (idx >= 0) m_navTargetCombo->setCurrentIndex(idx);
-        }
-    }
-
-    // Ensure visibility state
-    auto selAction = static_cast<ActionType>(m_actionTypeCombo->currentData().toInt());
-    m_navTargetCombo->setVisible(selAction == ActionType::Navigation);
+    Q_UNUSED(names);
+    // No-op: navigation targets are only relevant for ActionButton types,
+    // which are not supported in the simplified editor.
 }
 
 } // namespace vt

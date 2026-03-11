@@ -31,17 +31,6 @@ PageWidget *LayoutEngine::createPage(const QString &name)
                 emit buttonClicked(name, elementId);
             });
 
-    // Forward keypad presses.
-    connect(pg, &PageWidget::keypadPressed, this,
-            [this, name](const QString &value) {
-                emit keypadPressed(name, value);
-            });
-
-    // Forward action button triggers.
-    connect(pg, &PageWidget::actionTriggered, this,
-            [this, name](ActionType action, const QString &targetPage) {
-                emit actionTriggered(name, action, targetPage);
-            });
 
     return pg;
 }
@@ -84,19 +73,9 @@ bool LayoutEngine::renamePage(const QString &oldName, const QString &newName)
 
     // Re-connect forwarding signals with the new name
     disconnect(pg, &PageWidget::buttonClicked, this, nullptr);
-    disconnect(pg, &PageWidget::keypadPressed, this, nullptr);
-    disconnect(pg, &PageWidget::actionTriggered, this, nullptr);
     connect(pg, &PageWidget::buttonClicked, this,
             [this, newName](const QString &elementId) {
                 emit buttonClicked(newName, elementId);
-            });
-    connect(pg, &PageWidget::keypadPressed, this,
-            [this, newName](const QString &value) {
-                emit keypadPressed(newName, value);
-            });
-    connect(pg, &PageWidget::actionTriggered, this,
-            [this, newName](ActionType action, const QString &targetPage) {
-                emit actionTriggered(newName, action, targetPage);
             });
 
     if (m_activePage == pg)

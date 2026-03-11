@@ -134,6 +134,29 @@ All notable changes to this project will be documented in this file.
   - PropertyDialog updated with all new action types; fixed combo index mapping via `findData()`
   - Refactored `wirePageKeypad()` to support multiple PinEntry fields per page using Qt focus system
 
+  ### 2026-03-11 — Button-only cleanup
+
+  - Removed all non-Button UI element types and their implementations: `Label`, `Panel`, `PinEntry`, `KeypadButton`, `ActionButton`, `InfoLabel`.
+    - Deleted files (client layout):
+      - `src/client/layout/LabelElement.h`, `src/client/layout/LabelElement.cpp`
+      - `src/client/layout/PanelElement.h`, `src/client/layout/PanelElement.cpp`
+      - `src/client/layout/PinEntryElement.h`, `src/client/layout/PinEntryElement.cpp`
+      - `src/client/layout/KeypadButtonElement.h`, `src/client/layout/KeypadButtonElement.cpp`
+      - `src/client/layout/ActionButtonElement.h`, `src/client/layout/ActionButtonElement.cpp`
+      - `src/client/layout/InfoLabelElement.h`, `src/client/layout/InfoLabelElement.cpp`
+
+  - Simplified editor and runtime behavior to Button-only:
+    - `PropertyDialog` now exposes only Button properties and no PIN/keypad/action UI.
+    - `LayoutSerializer` and editor UI only serialize/deserialize `Button` elements.
+    - `MainWindow` enforces a single minimal `Login` system page at startup.
+
+  - Build system updates:
+    - Removed deleted sources from `src/client/CMakeLists.txt` and `src/host/CMakeLists.txt` so removed files are no longer compiled.
+
+  - Rationale: reduce feature scope to a minimal, stable runtime while preserving the layout engine and Button element for incremental re-introduction later.
+
+  - Verification: performed a full local build — `vt_client`, `vt_host`, and `vt_server` all built successfully after these changes.
+
 ## [0.1.0] - 2026-03-01
 - Project scaffold: initial commit
 

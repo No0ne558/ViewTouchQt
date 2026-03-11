@@ -5,12 +5,7 @@
 #define VT_PAGE_WIDGET_H
 
 #include "ButtonElement.h"
-#include "LabelElement.h"
-#include "PanelElement.h"
-#include "PinEntryElement.h"
-#include "KeypadButtonElement.h"
-#include "ActionButtonElement.h"
-#include "InfoLabelElement.h"
+#include "UiElement.h"
 
 #include <QGraphicsScene>
 #include <QHash>
@@ -47,29 +42,7 @@ public:
                              qreal w, qreal h, const QString &label);
 
     /// Create and add a label.
-    LabelElement *addLabel(const QString &id, qreal x, qreal y,
-                           qreal w, qreal h, const QString &text);
-
-    /// Create and add a panel.
-    PanelElement *addPanel(const QString &id, qreal x, qreal y,
-                           qreal w, qreal h);
-
-    /// Create and add a PIN entry field.
-    PinEntryElement *addPinEntry(const QString &id, qreal x, qreal y,
-                                 qreal w, qreal h);
-
-    /// Create and add a keypad button.
-    KeypadButtonElement *addKeypadButton(const QString &id, qreal x, qreal y,
-                                         qreal w, qreal h, const QString &label);
-
-    /// Create and add an action button (Login, Dine-In, To-Go).
-    ActionButtonElement *addActionButton(const QString &id, qreal x, qreal y,
-                                         qreal w, qreal h, const QString &label,
-                                         ActionType action);
-
-    /// Create and add an info label (auto-shows version info).
-    InfoLabelElement *addInfoLabel(const QString &id, qreal x, qreal y,
-                                   qreal w, qreal h);
+    // Labels, panels and other element types were removed; only buttons remain.
 
     /// Remove an element by id.  Returns true if found.
     bool removeElement(const QString &id);
@@ -97,11 +70,7 @@ signals:
     /// Forwarded from any ButtonElement on this page.
     void buttonClicked(const QString &elementId);
 
-    /// Forwarded from any KeypadButtonElement on this page.
-    void keypadPressed(const QString &value);
-
-    /// Forwarded from any ActionButtonElement on this page.
-    void actionTriggered(vt::ActionType action, const QString &targetPage);
+    // Only button clicks are forwarded now.
 
 private:
     void registerElement(UiElement *elem);

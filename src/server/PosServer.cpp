@@ -11,6 +11,9 @@ namespace vt {
 PosServer::PosServer(QObject *parent)
     : QTcpServer(parent)
 {
+    // Default to a minimal Login-only layout so standalone servers provide
+    // a predictable starting layout for newly connected clients.
+    m_currentLayout = QStringLiteral("{\"version\":1,\"pages\":[{\"name\":\"Login\",\"systemPage\":true,\"elements\":[]}]}").toUtf8();
 }
 
 bool PosServer::startListening(const QHostAddress &address, quint16 port)

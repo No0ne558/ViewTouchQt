@@ -38,94 +38,10 @@ ButtonElement *PageWidget::addButton(const QString &id, qreal x, qreal y,
     return btn;
 }
 
-LabelElement *PageWidget::addLabel(const QString &id, qreal x, qreal y,
-                                   qreal w, qreal h, const QString &text)
-{
-    if (m_elements.contains(id)) {
-        qWarning() << "[layout] Duplicate element id:" << id << "on page" << m_name;
-        return nullptr;
-    }
+// LabelElement, PanelElement, PinEntryElement, KeypadButtonElement,
+// ActionButtonElement and InfoLabelElement support removed — only
+// ButtonElement is supported by PageWidget.
 
-    auto *lbl = new LabelElement(id, x, y, w, h);
-    lbl->setLabel(text);
-    registerElement(lbl);
-    return lbl;
-}
-
-PanelElement *PageWidget::addPanel(const QString &id, qreal x, qreal y,
-                                   qreal w, qreal h)
-{
-    if (m_elements.contains(id)) {
-        qWarning() << "[layout] Duplicate element id:" << id << "on page" << m_name;
-        return nullptr;
-    }
-
-    auto *pnl = new PanelElement(id, x, y, w, h);
-    registerElement(pnl);
-    return pnl;
-}
-
-PinEntryElement *PageWidget::addPinEntry(const QString &id, qreal x, qreal y,
-                                          qreal w, qreal h)
-{
-    if (m_elements.contains(id)) {
-        qWarning() << "[layout] Duplicate element id:" << id << "on page" << m_name;
-        return nullptr;
-    }
-
-    auto *pin = new PinEntryElement(id, x, y, w, h);
-    registerElement(pin);
-    return pin;
-}
-
-KeypadButtonElement *PageWidget::addKeypadButton(const QString &id, qreal x, qreal y,
-                                                  qreal w, qreal h, const QString &label)
-{
-    if (m_elements.contains(id)) {
-        qWarning() << "[layout] Duplicate element id:" << id << "on page" << m_name;
-        return nullptr;
-    }
-
-    auto *kpd = new KeypadButtonElement(id, x, y, w, h);
-    kpd->setLabel(label);
-    registerElement(kpd);
-
-    connect(kpd, &KeypadButtonElement::keyPressed, this, &PageWidget::keypadPressed);
-
-    return kpd;
-}
-
-ActionButtonElement *PageWidget::addActionButton(const QString &id, qreal x, qreal y,
-                                                  qreal w, qreal h, const QString &label,
-                                                  ActionType action)
-{
-    if (m_elements.contains(id)) {
-        qWarning() << "[layout] Duplicate element id:" << id << "on page" << m_name;
-        return nullptr;
-    }
-
-    auto *act = new ActionButtonElement(id, x, y, w, h);
-    act->setLabel(label);
-    act->setActionType(action);
-    registerElement(act);
-
-    connect(act, &ActionButtonElement::actionTriggered, this, &PageWidget::actionTriggered);
-
-    return act;
-}
-
-InfoLabelElement *PageWidget::addInfoLabel(const QString &id, qreal x, qreal y,
-                                            qreal w, qreal h)
-{
-    if (m_elements.contains(id)) {
-        qWarning() << "[layout] Duplicate element id:" << id << "on page" << m_name;
-        return nullptr;
-    }
-
-    auto *info = new InfoLabelElement(id, x, y, w, h);
-    registerElement(info);
-    return info;
-}
 
 // ── Remove ──────────────────────────────────────────────────────────────────
 
@@ -176,45 +92,9 @@ UiElement *PageWidget::replaceElementType(const QString &id, ElementType newType
 
     // Create new element of the desired type using existing factory methods
     UiElement *created = nullptr;
-    switch (newType) {
-    case ElementType::Button: {
+    if (newType == ElementType::Button) {
         auto *btn = addButton(id, x, y, w, h, label);
         created = btn;
-        break;
-    }
-    case ElementType::Label: {
-        auto *lbl = addLabel(id, x, y, w, h, label);
-        created = lbl;
-        break;
-    }
-    case ElementType::Panel: {
-        auto *pnl = addPanel(id, x, y, w, h);
-        pnl->setLabel(label);
-        created = pnl;
-        break;
-    }
-    case ElementType::PinEntry: {
-        auto *pin = addPinEntry(id, x, y, w, h);
-        pin->setLabel(label);
-        created = pin;
-        break;
-    }
-    case ElementType::KeypadButton: {
-        auto *kpd = addKeypadButton(id, x, y, w, h, label);
-        created = kpd;
-        break;
-    }
-    case ElementType::ActionButton: {
-        auto *act = addActionButton(id, x, y, w, h, label, ActionType::Login);
-        created = act;
-        break;
-    }
-    case ElementType::InfoLabel: {
-        auto *info = addInfoLabel(id, x, y, w, h);
-        // Label is auto-generated (version info); don't overwrite it.
-        created = info;
-        break;
-    }
     }
 
     if (created) {

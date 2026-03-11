@@ -32,12 +32,8 @@ public:
     /// The element type selected by the user (may differ from original).
     ElementType newType() const { return m_newType; }
 
-    // ── Type-specific property getters (for post-replacement application) ──
-    bool    pinMasked() const;
-    int     pinMaxLength() const;
-    QString keypadValue() const;
+    // ── Type-specific property getters (only Button supported now)
     int     actionTypeValue() const;
-    QString targetPage() const;
     bool    inheritable() const;
 
 private slots:
@@ -74,17 +70,8 @@ private:
     // Type selector
     QComboBox *m_typeCombo = nullptr;
 
-    // Type-specific groups (always created, shown/hidden based on type)
-    QGroupBox *m_pinGroup = nullptr;
-    QGroupBox *m_kpdGroup = nullptr;
-    QGroupBox *m_actGroup = nullptr;
-
-    // Type-specific widgets
-    QLineEdit *m_keyValueEdit    = nullptr;   // KeypadButton
-    QComboBox *m_actionTypeCombo = nullptr;   // ActionButton
-    QComboBox *m_navTargetCombo  = nullptr;   // ActionButton (Navigation target)
-    QCheckBox *m_maskedCheck     = nullptr;   // PinEntry
-    QSpinBox  *m_maxLengthBox    = nullptr;   // PinEntry
+    // Type-specific widgets (action-type chooser retained but not used)
+    QComboBox *m_actionTypeCombo = nullptr;   // ActionButton (kept as placeholder)
 
     // Common flag
     QCheckBox *m_inheritableChk  = nullptr;

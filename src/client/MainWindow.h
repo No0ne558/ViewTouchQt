@@ -42,26 +42,13 @@ protected:
     void keyPressEvent(QKeyEvent *event) override;
 
 private:
-    void buildTestPage();
     void buildDefaultLoginPage();
-    void buildDisplaysPage();
-    void buildDisplayEditPage();
-    void buildDisplayEditKeyboard(PageWidget *pg);
     void ensureSystemPages();
-    void wirePageKeypad(const QString &pageName);
-    void handleAction(const QString &pageName, ActionType action, const QString &targetPage);
     void toggleEditMode();
     void openPropertyDialog(UiElement *elem);
     void openPageManager();
 
     // ── Display management helpers ──────────────────────────────────────
-    void refreshDisplayList();
-    void handleAddDisplay();
-    void handleEditDisplay(const QString &uuid);
-    void handleRemoveDisplay();
-    void handleToggleDisplay();
-    void handleTestPrinter();
-    void handleDisplayDone();
     void launchDisplayClient(const DisplayConfig &cfg);
     void stopDisplayClient(const QString &uuid);
     void launchAllActiveDisplays();

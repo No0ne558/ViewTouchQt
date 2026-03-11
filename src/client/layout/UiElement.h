@@ -15,12 +15,6 @@ namespace vt {
 /// Element types for identification and serialization.
 enum class ElementType {
     Button,
-    Label,
-    Panel,
-    PinEntry,
-    KeypadButton,
-    ActionButton,
-    InfoLabel,
 };
 
 /// Base class for every visual element placed on a PageWidget.
