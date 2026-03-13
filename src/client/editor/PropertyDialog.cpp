@@ -235,7 +235,8 @@ void PropertyDialog::onTypeChanged(int index)
 
 int PropertyDialog::actionTypeValue() const
 {
-    return m_actionTypeCombo ? m_actionTypeCombo->currentData().toInt() : 0;
+    // Action types are no longer supported in the simplified editor.
+    return 0;
 }
 
 bool PropertyDialog::inheritable() const

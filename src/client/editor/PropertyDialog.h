@@ -70,8 +70,8 @@ private:
     // Type selector
     QComboBox *m_typeCombo = nullptr;
 
-    // Type-specific widgets (action-type chooser retained but not used)
-    QComboBox *m_actionTypeCombo = nullptr;   // ActionButton (kept as placeholder)
+    // Type-specific widgets (no longer used in simplified editor)
+    // (action-type UI removed)
 
     // Common flag
     QCheckBox *m_inheritableChk  = nullptr;
