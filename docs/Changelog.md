@@ -8,6 +8,16 @@ All notable changes to this project will be documented in this file.
 - Implemented `vt_client`: fullscreen Qt Widgets terminal with auto-scaling 1920×1080 UI
 - Implemented shared binary protocol library (`src/common/Protocol`)
 - Added `ButtonItem`: grey button that flashes yellow on press/ack
+
+- Editor: keep Properties dialog on top and new button behaviours (2026-03-13)
+  - `PropertyDialog` is now parented to the main window and created modal with `WindowStaysOnTopHint` so it remains above the main window and cannot be lost behind it.
+  - Added configurable button behaviours: `Blink` (default), `Toggle`, `None`, and `Double Tap`.
+    - `Blink`: existing brief yellow flash on press/ack.
+    - `Toggle`: press toggles persistent active state (visual remains active until toggled off).
+    - `None`: no visual feedback on press (still emits click events).
+    - `Double Tap`: requires two taps within a short timeout to trigger the action.
+  - Behaviour selector added to `PropertyDialog` UI and persisted in layout JSON as `behavior`.
+  - Runtime: `ButtonElement` implements behaviour branching and respects Toggle state across server ACK flashes; `LayoutSerializer` saves/restores behaviour.
 - Added `PosClient` with automatic reconnection (3 s retry)
 - Added `ClientSession` with heartbeat (5 s ping, 15 s timeout)
 - Added CMake build system with Qt 6.5+ / C++17

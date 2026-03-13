@@ -75,6 +75,8 @@ private:
 
     // Common flag
     QCheckBox *m_inheritableChk  = nullptr;
+    // Button behaviour selector
+    QComboBox *m_behaviorCombo = nullptr;
 };
 
 } // namespace vt

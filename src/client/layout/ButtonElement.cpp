@@ -20,6 +20,10 @@ ButtonElement::ButtonElement(const QString &id,
     m_flashTimer.setSingleShot(true);
     m_flashTimer.setInterval(kFlashDurationMs);
     connect(&m_flashTimer, &QTimer::timeout, this, &ButtonElement::resetColor);
+
+    m_doubleTapTimer.setSingleShot(true);
+    m_doubleTapTimer.setInterval(kDoubleTapMs);
+    connect(&m_doubleTapTimer, &QTimer::timeout, this, &ButtonElement::onDoubleTapTimeout);
 }
 
 void ButtonElement::setBgColor(const QColor &c)
@@ -48,6 +52,12 @@ void ButtonElement::paint(QPainter *painter,
 
 void ButtonElement::flashAck()
 {
+    // Do not perform ack flash for elements configured with 'None'
+    if (behavior() == UiElement::ButtonBehavior::None)
+        return;
+
+    // Show active colour briefly; resetColor() will restore the
+    // element's logical display state (respecting Toggle).
     m_currentColor = m_activeColor;
     update();
     m_flashTimer.start();
@@ -56,16 +66,57 @@ void ButtonElement::flashAck()
 void ButtonElement::mousePressEvent(QGraphicsSceneMouseEvent *event)
 {
     Q_UNUSED(event);
-    m_currentColor = m_activeColor;
-    update();
-    m_flashTimer.start();
-    emit clicked(m_id);
+    // Branch behaviour based on element setting
+    switch (behavior()) {
+    case ButtonBehavior::Blink:
+        m_currentColor = m_activeColor;
+        update();
+        m_flashTimer.start();
+        emit clicked(m_id);
+        break;
+    case ButtonBehavior::Toggle:
+        m_toggled = !m_toggled;
+        // Cancel any pending flash reset so toggled-on state persists.
+        m_flashTimer.stop();
+        m_currentColor = m_toggled ? m_activeColor : m_bgColor;
+        update();
+        emit clicked(m_id);
+        break;
+    case ButtonBehavior::None:
+        emit clicked(m_id);
+        break;
+    case ButtonBehavior::DoubleTap:
+        if (m_pendingTap) {
+            // Second tap within timeout — trigger action
+            m_pendingTap = false;
+            m_doubleTapTimer.stop();
+            m_currentColor = m_activeColor;
+            update();
+            m_flashTimer.start();
+            emit clicked(m_id);
+        } else {
+            // First tap — wait for a possible second tap
+            m_pendingTap = true;
+            m_doubleTapTimer.start();
+        }
+        break;
+    }
 }
 
 void ButtonElement::resetColor()
 {
-    m_currentColor = m_bgColor;
+    // Restore to either toggled active colour (for Toggle) or idle bg.
+    if (behavior() == UiElement::ButtonBehavior::Toggle && m_toggled)
+        m_currentColor = m_activeColor;
+    else
+        m_currentColor = m_bgColor;
     update();
+}
+
+void ButtonElement::onDoubleTapTimeout()
+{
+    // Double-tap window expired — clear pending state and do nothing.
+    m_pendingTap = false;
 }
 
 } // namespace vt

@@ -43,6 +43,16 @@ private:
     QColor m_activeColor = QColor(255, 220, 50);  // yellow
     QTimer m_flashTimer;
     static constexpr int kFlashDurationMs = 200;
+    // Toggle state for Toggle behaviour
+    bool m_toggled = false;
+
+    // Double-tap handling
+    QTimer m_doubleTapTimer;
+    bool m_pendingTap = false;
+    static constexpr int kDoubleTapMs = 300;
+
+private slots:
+    void onDoubleTapTimeout();
 };
 
 } // namespace vt

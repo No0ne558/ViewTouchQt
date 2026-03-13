@@ -161,6 +161,16 @@ void PropertyDialog::setupUi()
     m_radiusBox->setValue(static_cast<int>(m_element->cornerRadius()));
     styleForm->addRow(QStringLiteral("Corner radius:"), m_radiusBox);
 
+    // Behaviour selector (Button only)
+    m_behaviorCombo = new QComboBox;
+    m_behaviorCombo->addItem(QStringLiteral("Blink"), static_cast<int>(UiElement::ButtonBehavior::Blink));
+    m_behaviorCombo->addItem(QStringLiteral("Toggle"), static_cast<int>(UiElement::ButtonBehavior::Toggle));
+    m_behaviorCombo->addItem(QStringLiteral("None"), static_cast<int>(UiElement::ButtonBehavior::None));
+    m_behaviorCombo->addItem(QStringLiteral("Double Tap"), static_cast<int>(UiElement::ButtonBehavior::DoubleTap));
+    int behIdx = m_behaviorCombo->findData(static_cast<int>(m_element->behavior()));
+    if (behIdx >= 0) m_behaviorCombo->setCurrentIndex(behIdx);
+    styleForm->addRow(QStringLiteral("Behaviour:"), m_behaviorCombo);
+
     mainLayout->addWidget(styleGroup);
 
     // ── Type-specific groups (always created, shown/hidden by type) ─────
@@ -217,6 +227,8 @@ void PropertyDialog::applyChanges()
     m_element->setTextColor(m_textColor);
     m_element->setCornerRadius(m_radiusBox->value());
     m_element->setInheritable(m_inheritableChk->isChecked());
+    if (m_behaviorCombo)
+        m_element->setBehavior(static_cast<UiElement::ButtonBehavior>(m_behaviorCombo->currentData().toInt()));
 
     // ── Type-specific properties (only apply if type NOT changing) ───────
     if (!typeChanged()) {

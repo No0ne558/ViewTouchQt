@@ -103,6 +103,22 @@ protected:
     QString m_fontFamily   = QStringLiteral("Sans");
     bool    m_fontBold     = true;
     bool    m_inheritable  = false;
+
+public:
+    // Button interaction behaviour. Stored on the element so it can be
+    // serialized and edited via the PropertyDialog. Default is Blink.
+    enum class ButtonBehavior {
+        Blink = 0,
+        Toggle,
+        None,
+        DoubleTap,
+    };
+
+    ButtonBehavior behavior() const { return m_behavior; }
+    void setBehavior(ButtonBehavior b) { m_behavior = b; }
+
+protected:
+    ButtonBehavior m_behavior = ButtonBehavior::Blink;
 };
 
 } // namespace vt

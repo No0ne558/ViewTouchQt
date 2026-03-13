@@ -190,7 +190,8 @@ void MainWindow::toggleEditMode()
 
 void MainWindow::openPropertyDialog(UiElement *elem)
 {
-    PropertyDialog dlg(elem, nullptr);  // nullptr parent → independent top-level window
+    PropertyDialog dlg(elem, this);  // parented to MainWindow so stacking is predictable
+    dlg.setWindowFlag(Qt::WindowStaysOnTopHint, true);
     dlg.setPageNames(m_engine->pageNames());
     if (dlg.exec() == QDialog::Accepted) {
         UiElement *target = elem;

@@ -117,6 +117,21 @@ QJsonObject LayoutSerializer::serializeElement(const UiElement *elem)
     if (elem->elementType() == ElementType::Button) {
         auto *btn = static_cast<const ButtonElement *>(elem);
         obj[QStringLiteral("activeColor")] = btn->activeColor().name(QColor::HexArgb);
+        // Serialize behaviour as a string for readability
+        switch (elem->behavior()) {
+        case UiElement::ButtonBehavior::Blink:
+            obj[QStringLiteral("behavior")] = QStringLiteral("blink");
+            break;
+        case UiElement::ButtonBehavior::Toggle:
+            obj[QStringLiteral("behavior")] = QStringLiteral("toggle");
+            break;
+        case UiElement::ButtonBehavior::None:
+            obj[QStringLiteral("behavior")] = QStringLiteral("none");
+            break;
+        case UiElement::ButtonBehavior::DoubleTap:
+            obj[QStringLiteral("behavior")] = QStringLiteral("doubletap");
+            break;
+        }
     }
 
     return obj;
@@ -208,6 +223,17 @@ bool LayoutSerializer::deserializeElement(PageWidget *page, const QJsonObject &o
         btn->setInheritable(inheritable);
         if (obj.contains(QStringLiteral("activeColor")))
             btn->setActiveColor(QColor(obj[QStringLiteral("activeColor")].toString()));
+        if (obj.contains(QStringLiteral("behavior"))) {
+            QString s = obj[QStringLiteral("behavior")].toString();
+            if (s == QLatin1String("blink"))
+                btn->setBehavior(UiElement::ButtonBehavior::Blink);
+            else if (s == QLatin1String("toggle"))
+                btn->setBehavior(UiElement::ButtonBehavior::Toggle);
+            else if (s == QLatin1String("none"))
+                btn->setBehavior(UiElement::ButtonBehavior::None);
+            else if (s == QLatin1String("doubletap"))
+                btn->setBehavior(UiElement::ButtonBehavior::DoubleTap);
+        }
     } else {
         // Skip any non-button element types. This intentionally drops
         // elements like labels, panels, pin entries, keypads, actions, etc.
