@@ -157,6 +157,12 @@ All notable changes to this project will be documented in this file.
 
   - Verification: performed a full local build — `vt_client`, `vt_host`, and `vt_server` all built successfully after these changes.
 
+  - Editor cleanup (2026-03-13)
+
+    - Removed leftover action-type UI placeholder from `PropertyDialog`:
+      - Deleted the `m_actionTypeCombo` member and simplified `PropertyDialog::actionTypeValue()` to return 0.
+      - This removes the last UI affordance for ActionButton configuration in the simplified Button-only editor (commit ff99ce8).
+
 ## [0.1.0] - 2026-03-01
 - Project scaffold: initial commit
 
