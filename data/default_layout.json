@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "pages": [
+    {
+      "name": "Login",
+      "systemPage": true,
+      "elements": []
+    }
+  ]
+}

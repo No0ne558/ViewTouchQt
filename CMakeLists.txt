@@ -51,6 +51,9 @@ add_subdirectory(src/server)
 add_subdirectory(src/client)
 add_subdirectory(src/host)
 
+# Install default layout data into the install prefix under `dat/`.
+install(FILES ${CMAKE_SOURCE_DIR}/data/default_layout.json DESTINATION dat RENAME layout.json)
+
 # ----- CPack (deb / rpm) -----------------------------------------------------
 set(CPACK_PACKAGE_VENDOR "OrderPi LLC")
 set(CPACK_PACKAGE_CONTACT "arielbrambila117@gmail.com")

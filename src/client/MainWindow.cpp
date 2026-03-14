@@ -22,6 +22,9 @@
 #include <QShowEvent>
 #include <QStandardPaths>
 #include <QTimer>
+#include <QFileInfo>
+#include <QFile>
+#include <unistd.h>
 
 namespace vt {
 
@@ -234,10 +237,40 @@ void MainWindow::openPageManager()
 
 QString MainWindow::defaultLayoutPath() const
 {
-    // Store layout in config directory: ~/.config/ViewTouchQt/layout.json
+    // 1) Respect explicit override via environment variable.
+    QByteArray env = qgetenv("VIEWTOUCH_DATA_DIR");
+    if (!env.isEmpty()) {
+        QString envDir = QString::fromUtf8(env);
+        QDir d(envDir);
+        if (!d.exists())
+            QDir().mkpath(d.path());
+        return d.filePath(QStringLiteral("layout.json"));
+    }
+
+    // 2) Prefer system install data directory: /opt/viewtouch/dat/layout.json
+    const QString systemDatPath = QStringLiteral("/opt/viewtouch/dat");
+    QDir sysDir(systemDatPath);
+    if (!sysDir.exists()) {
+        // If running as root, try creating the directory so install-time layout is available.
+        if (geteuid() == 0)
+            QDir().mkpath(systemDatPath);
+    }
+    QString sysLayout = sysDir.filePath(QStringLiteral("layout.json"));
+    QFileInfo fi(sysLayout);
+    if (fi.exists()) {
+        if (fi.isReadable())
+            return sysLayout; // system-provided layout present
+    } else {
+        // No layout file yet — if the system dat dir is writable (or we're root) prefer it.
+        QFileInfo dirInfo(sysDir.absolutePath());
+        if (dirInfo.isWritable() || geteuid() == 0)
+            return sysLayout;
+    }
+
+    // 3) Fallback to per-user config location (~/.config/ViewTouchQt/layout.json)
     QString dir = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
     QDir().mkpath(dir);
-    return dir + QStringLiteral("/layout.json");
+    return QDir(dir).filePath(QStringLiteral("layout.json"));
 }
 
 bool MainWindow::loadLayoutIfExists()
