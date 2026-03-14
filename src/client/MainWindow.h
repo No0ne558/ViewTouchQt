@@ -48,6 +48,9 @@ private:
     void openPropertyDialog(UiElement *elem);
     void openPageManager();
 
+    // Save layout, prompting for elevation if writing to system dat requires root.
+    bool saveLayoutWithElevation(const QJsonDocument &doc, const QString &targetPath);
+
     // ── Display management helpers ──────────────────────────────────────
     void launchDisplayClient(const DisplayConfig &cfg);
     void stopDisplayClient(const QString &uuid);

@@ -22,6 +22,7 @@
 #include <QShowEvent>
 #include <QStandardPaths>
 #include <QTimer>
+#include <QTemporaryFile>
 #include <QFileInfo>
 #include <QFile>
 #include <unistd.h>
@@ -86,11 +87,16 @@ MainWindow::MainWindow(PosClient *client, QWidget *parent)
         if (!on) {
             // Auto-save layout when exiting edit mode
             QString path = defaultLayoutPath();
-            LayoutSerializer::saveToFile(m_engine, path);
-
-            // Notify (host wiring broadcasts this to clients)
             QJsonObject root = LayoutSerializer::serialize(m_engine);
             QJsonDocument doc(root);
+            // Try normal save first; if it fails due to permissions, prompt to elevate.
+            if (!LayoutSerializer::saveToFile(m_engine, path)) {
+                if (!saveLayoutWithElevation(doc, path)) {
+                    qWarning() << "[main] Failed to save layout to" << path;
+                }
+            }
+
+            // Notify (host wiring broadcasts this to clients)
             emit layoutChanged(doc.toJson(QJsonDocument::Compact));
         }
     });
@@ -130,6 +136,58 @@ MainWindow::MainWindow(PosClient *client, QWidget *parent)
         // Launch remote clients for all active displays once the server is ready.
         launchAllActiveDisplays();
     });
+}
+
+bool MainWindow::saveLayoutWithElevation(const QJsonDocument &doc, const QString &targetPath)
+{
+    // Write to a temporary file in user space first.
+    QTemporaryFile tmp;
+    tmp.setAutoRemove(false);
+    if (!tmp.open()) {
+        qWarning() << "[main] Cannot create temporary file for elevated save";
+        return false;
+    }
+    QByteArray data = doc.toJson(QJsonDocument::Indented);
+    tmp.write(data);
+    tmp.flush();
+    tmp.close();
+
+    // Ask user for permission to run a privileged copy.
+    auto resp = QMessageBox::question(this, QStringLiteral("ViewTouch"),
+                                      QStringLiteral("Saving the layout requires root permission to write to %1.\nRun privileged installer to save now?").arg(targetPath),
+                                      QMessageBox::Yes | QMessageBox::No,
+                                      QMessageBox::Yes);
+    if (resp != QMessageBox::Yes) {
+        QFile::remove(tmp.fileName());
+        return false;
+    }
+
+    // Use pkexec to run install with mode 0644 to copy file as root.
+    QString prog = QStringLiteral("pkexec");
+    QStringList args;
+    args << QStringLiteral("install") << QStringLiteral("-m") << QStringLiteral("0644") << tmp.fileName() << targetPath;
+
+    QProcess proc(this);
+    proc.start(prog, args);
+    if (!proc.waitForFinished(120000)) {
+        qWarning() << "[main] Elevated save command timed out";
+        QFile::remove(tmp.fileName());
+        return false;
+    }
+
+    int exitCode = proc.exitCode();
+    if (exitCode != 0) {
+        qWarning() << "[main] Elevated save failed:" << proc.readAllStandardError();
+        QMessageBox::warning(this, QStringLiteral("ViewTouch"),
+                             QStringLiteral("Elevated save failed: %1").arg(QString::fromUtf8(proc.readAllStandardError())));
+        QFile::remove(tmp.fileName());
+        return false;
+    }
+
+    // Success — remove temp and return true.
+    QFile::remove(tmp.fileName());
+    qInfo() << "[main] Layout saved with elevated privileges to" << targetPath;
+    return true;
 }
 
 void MainWindow::resizeEvent(QResizeEvent *event)
