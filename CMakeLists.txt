@@ -15,8 +15,8 @@ set(CMAKE_AUTOMOC ON)          # Qt meta-object compiler
 set(CMAKE_AUTORCC ON)          # Qt resource compiler
 
 # If the install prefix was not specified by the user, default to /opt/ViewTouch
-if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
-    set(CMAKE_INSTALL_PREFIX "/opt/ViewTouch" CACHE PATH "Installation prefix")
+if(NOT DEFINED CMAKE_INSTALL_PREFIX OR CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT OR CMAKE_INSTALL_PREFIX STREQUAL "/usr/local")
+    set(CMAKE_INSTALL_PREFIX "/opt/viewtouch" CACHE PATH "Installation prefix" FORCE)
 endif()
 
 # ----- Find Qt 6 -------------------------------------------------------------

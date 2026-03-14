@@ -18,6 +18,9 @@ All notable changes to this project will be documented in this file.
     - `Double Tap`: requires two taps within a short timeout to trigger the action.
   - Behaviour selector added to `PropertyDialog` UI and persisted in layout JSON as `behavior`.
   - Runtime: `ButtonElement` implements behaviour branching and respects Toggle state across server ACK flashes; `LayoutSerializer` saves/restores behaviour.
+  
+  - Installer: default install prefix now set to `/opt/viewtouch` and install creates `/opt/viewtouch`; `CMAKE_INSTALL_PREFIX` is forced to `/opt/viewtouch` so `cmake --install` places binaries under `/opt/viewtouch/bin` (2026-03-13)
+  - Updated `CMakeLists.txt` to enforce the install prefix for consistent installs across systems.
 - Added `PosClient` with automatic reconnection (3 s retry)
 - Added `ClientSession` with heartbeat (5 s ping, 15 s timeout)
 - Added CMake build system with Qt 6.5+ / C++17
