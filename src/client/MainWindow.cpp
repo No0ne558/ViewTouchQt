@@ -89,7 +89,7 @@ MainWindow::MainWindow(PosClient *client, QWidget *parent)
             QString path = defaultLayoutPath();
             QJsonObject root = LayoutSerializer::serialize(m_engine);
             QJsonDocument doc(root);
-            // Try normal save first; if it fails due to permissions, prompt to elevate.
+            // Try normal save first; if it fails, attempt system save helper.
             if (!LayoutSerializer::saveToFile(m_engine, path)) {
                 if (!saveLayoutWithElevation(doc, path)) {
                     qWarning() << "[main] Failed to save layout to" << path;
@@ -144,7 +144,7 @@ bool MainWindow::saveLayoutWithElevation(const QJsonDocument &doc, const QString
     QTemporaryFile tmp;
     tmp.setAutoRemove(false);
     if (!tmp.open()) {
-        qWarning() << "[main] Cannot create temporary file for elevated save";
+        qWarning() << "[main] Cannot create temporary file for layout save";
         return false;
     }
     QByteArray data = doc.toJson(QJsonDocument::Indented);
@@ -152,41 +152,31 @@ bool MainWindow::saveLayoutWithElevation(const QJsonDocument &doc, const QString
     tmp.flush();
     tmp.close();
 
-    // Ask user for permission to run a privileged copy.
-    auto resp = QMessageBox::question(this, QStringLiteral("ViewTouch"),
-                                      QStringLiteral("Saving the layout requires root permission to write to %1.\nRun privileged installer to save now?").arg(targetPath),
-                                      QMessageBox::Yes | QMessageBox::No,
-                                      QMessageBox::Yes);
-    if (resp != QMessageBox::Yes) {
+    // Directly copy the temporary file into place. This function now
+    // assumes the process has the necessary permissions (e.g., is run as
+    // root). It performs an atomic-like replace by removing any existing
+    // target first and then copying the temp file.
+    if (QFile::exists(targetPath)) {
+        if (!QFile::remove(targetPath)) {
+            qWarning() << "[main] Failed to remove existing target" << targetPath;
+            QFile::remove(tmp.fileName());
+            return false;
+        }
+    }
+
+    if (!QFile::copy(tmp.fileName(), targetPath)) {
+        qWarning() << "[main] Failed to copy temp file to" << targetPath;
         QFile::remove(tmp.fileName());
         return false;
     }
 
-    // Use sudo to run install with mode 0644 to copy file as root.
-    QString prog = QStringLiteral("sudo");
-    QStringList args;
-    args << QStringLiteral("install") << QStringLiteral("-m") << QStringLiteral("0644") << tmp.fileName() << targetPath;
+    // Ensure permissions are rw-r--r-- (0644).
+    QFile::Permissions perms = QFile::ReadOwner | QFile::WriteOwner | QFile::ReadGroup | QFile::ReadOther;
+    QFile target(targetPath);
+    target.setPermissions(perms);
 
-    QProcess proc(this);
-    proc.start(prog, args);
-    if (!proc.waitForFinished(120000)) {
-        qWarning() << "[main] Elevated save command timed out";
-        QFile::remove(tmp.fileName());
-        return false;
-    }
-
-    int exitCode = proc.exitCode();
-    if (exitCode != 0) {
-        qWarning() << "[main] Elevated save failed:" << proc.readAllStandardError();
-        QMessageBox::warning(this, QStringLiteral("ViewTouch"),
-                             QStringLiteral("Elevated save failed: %1").arg(QString::fromUtf8(proc.readAllStandardError())));
-        QFile::remove(tmp.fileName());
-        return false;
-    }
-
-    // Success — remove temp and return true.
     QFile::remove(tmp.fileName());
-    qInfo() << "[main] Layout saved with elevated privileges to" << targetPath;
+    qInfo() << "[main] Layout saved to" << targetPath;
     return true;
 }
 
