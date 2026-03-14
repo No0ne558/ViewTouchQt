@@ -21,6 +21,12 @@ All notable changes to this project will be documented in this file.
   
   - Installer: default install prefix now set to `/opt/viewtouch` and install creates `/opt/viewtouch`; `CMAKE_INSTALL_PREFIX` is forced to `/opt/viewtouch` so `cmake --install` places binaries under `/opt/viewtouch/bin` (2026-03-13)
   - Updated `CMakeLists.txt` to enforce the install prefix for consistent installs across systems.
+  
+  - Storage: layout persistence now uses a system data directory `/opt/viewtouch/dat/layout.json` by default (2026-03-13)
+    - Added `data/default_layout.json` and install rule to place it at `${CMAKE_INSTALL_PREFIX}/dat/layout.json` so a shipped default is available after install.
+    - Runtime now reads and writes the authoritative layout from `/opt/viewtouch/dat/layout.json`.
+    - Added an elevation save helper: when the app lacks permission to write the system file, it prompts the user and uses `sudo install -m 0644` to save the layout atomically.
+    - Previously-added first-run copy behavior (copy installed default into user config) was replaced by the system-wide storage model; a user-visible notification is shown when defaults are copied during earlier flows.
 - Added `PosClient` with automatic reconnection (3 s retry)
 - Added `ClientSession` with heartbeat (5 s ping, 15 s timeout)
 - Added CMake build system with Qt 6.5+ / C++17
