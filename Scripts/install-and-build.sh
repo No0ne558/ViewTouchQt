@@ -38,34 +38,126 @@ fi
 
 install_packages() {
     echo "[installer] Attempting to install common build dependencies for detected package manager: $PM"
+
+    # Candidate package names for each role. We'll probe availability and only
+    # install packages that exist in the system repositories.
+    BUILD_PKGS_COMMON=(cmake git)
+
     case "$PM" in
         apt)
             sudo apt-get update || true
-            sudo apt-get install -y build-essential cmake git pkg-config \ 
-                libxcb-xinerama0-dev libxcb1-dev qt6-base-dev qtbase5-dev || true
+            PKG_QUERY_CMD() { apt-cache show "$1" >/dev/null 2>&1; }
+            INSTALL_CMD() { sudo apt-get install -y "$@"; }
+            # Candidate packages
+            BUILD_TOOLS=(build-essential)
+            PKGCONFIG=(pkg-config)
+            XCB_CANDIDATES=(libxcb-xinerama0-dev libxcb1-dev libxcb-devel)
+            QT_CANDIDATES=(qt6-base-dev qtbase5-dev libqt6-dev libqt5-dev)
             ;;
         dnf)
-            sudo dnf install -y @development-tools cmake git pkgconfig \ 
-                xcb-util-wm-devel libxcb-devel qt6-qtbase-devel || true
+            PKG_QUERY_CMD() { dnf info "$1" >/dev/null 2>&1; }
+            INSTALL_CMD() { sudo dnf install -y "$@"; }
+            BUILD_TOOLS=('@development-tools')
+            PKGCONFIG=(pkgconfig)
+            XCB_CANDIDATES=(xcb-util-wm-devel libxcb-devel)
+            QT_CANDIDATES=(qt6-qtbase-devel qt5-qtbase-devel)
             ;;
         yum)
-            sudo yum groupinstall -y "Development Tools" || true
-            sudo yum install -y cmake git pkgconfig libxcb-devel qt5-qtbase-devel || true
+            PKG_QUERY_CMD() { yum info "$1" >/dev/null 2>&1; }
+            INSTALL_CMD() { sudo yum install -y "$@"; }
+            BUILD_TOOLS=('Development Tools')
+            PKGCONFIG=(pkgconfig)
+            XCB_CANDIDATES=(libxcb-devel)
+            QT_CANDIDATES=(qt5-qtbase-devel qt6-qtbase-devel)
             ;;
         pacman)
-            sudo pacman -Sy --noconfirm base-devel cmake git pkgconf qt6-base || true
+            PKG_QUERY_CMD() { pacman -Si "$1" >/dev/null 2>&1; }
+            INSTALL_CMD() { sudo pacman -Sy --noconfirm "$@"; }
+            BUILD_TOOLS=(base-devel)
+            PKGCONFIG=(pkgconf)
+            XCB_CANDIDATES=(libxcb)
+            QT_CANDIDATES=(qt6-base qt5-base)
             ;;
         zypper)
-            sudo zypper install -t pattern devel_C_C++ || true
-            sudo zypper install -y cmake git pkg-config libxcb-devel libqt6-qtbase-devel || true
+            PKG_QUERY_CMD() { zypper se -s "$1" >/dev/null 2>&1; }
+            INSTALL_CMD() { sudo zypper install -y "$@"; }
+            BUILD_TOOLS=(devel_C_C++)
+            PKGCONFIG=(pkg-config)
+            XCB_CANDIDATES=(libxcb-devel)
+            QT_CANDIDATES=(libqt6-qtbase-devel libqt5-qtbase-devel)
             ;;
         apk)
-            sudo apk add build-base cmake git pkgconfig qt6-qtbase-dev libxcb-dev || true
+            PKG_QUERY_CMD() { apk search "$1" >/dev/null 2>&1; }
+            INSTALL_CMD() { sudo apk add "$@"; }
+            BUILD_TOOLS=(build-base)
+            PKGCONFIG=(pkgconfig)
+            XCB_CANDIDATES=(libxcb-dev)
+            QT_CANDIDATES=(qt6-qtbase-dev qt5-qtbase-dev)
             ;;
         *)
             echo "[installer] Unknown package manager. Skipping automatic installs."
+            return
             ;;
     esac
+
+    # Helper to check candidate list and pick available ones
+    pick_available() {
+        local -n candidates=$1
+        shift
+        local -n out=$1
+        out=()
+        for pkg in "${candidates[@]}"; do
+            if PKG_QUERY_CMD "$pkg"; then
+                out+=("$pkg")
+            fi
+        done
+    }
+
+    # Build list to install
+    TO_INSTALL=()
+
+    # Add build tools (group/package)
+    for t in "${BUILD_TOOLS[@]:-}"; do
+        # Some package managers use group install (dnf) — try the install command
+        # directly for groups if query isn't available
+        if PKG_QUERY_CMD "$t"; then
+            TO_INSTALL+=("$t")
+        else
+            # If query failed, still try to include it (install may succeed)
+            TO_INSTALL+=("$t")
+        fi
+    done
+
+    # Common small packages
+    for p in "${BUILD_PKGS_COMMON[@]}"; do
+        if PKG_QUERY_CMD "$p"; then
+            TO_INSTALL+=("$p")
+        fi
+    done
+
+    # pkg-config
+    for p in "${PKGCONFIG[@]:-}"; do
+        if PKG_QUERY_CMD "$p"; then TO_INSTALL+=("$p"); break; fi
+    done
+
+    # XCB dev
+    pick_available XCB_CANDIDATES XCB_AVAIL
+    for p in "${XCB_AVAIL[@]:-}"; do TO_INSTALL+=("$p"); done
+
+    # Qt dev
+    pick_available QT_CANDIDATES QT_AVAIL
+    if [ ${#QT_AVAIL[@]} -gt 0 ]; then
+        # Prefer the first available candidate
+        TO_INSTALL+=("${QT_AVAIL[0]}")
+    fi
+
+    if [ ${#TO_INSTALL[@]} -eq 0 ]; then
+        echo "[installer] No packages detected for installation. Please install dependencies manually."
+        return
+    fi
+
+    echo "[installer] Installing packages: ${TO_INSTALL[*]}"
+    INSTALL_CMD "${TO_INSTALL[@]}" || true
     echo "[installer] Done attempted installs (errors ignored). If dependencies failed, please install them manually."
 }
 
