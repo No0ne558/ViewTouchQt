@@ -14,6 +14,11 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_AUTOMOC ON)          # Qt meta-object compiler
 set(CMAKE_AUTORCC ON)          # Qt resource compiler
 
+# If the install prefix was not specified by the user, default to /opt/ViewTouch
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+    set(CMAKE_INSTALL_PREFIX "/opt/ViewTouch" CACHE PATH "Installation prefix")
+endif()
+
 # ----- Find Qt 6 -------------------------------------------------------------
 find_package(Qt6 6.5 REQUIRED COMPONENTS Widgets Network)
 
