@@ -274,6 +274,10 @@ bool MainWindow::loadLayoutIfExists()
         if (QFile::copy(installedPath, userPath)) {
             QFile::setPermissions(userPath, QFileDevice::ReadOwner | QFileDevice::WriteOwner |
                                          QFileDevice::ReadUser | QFileDevice::ReadGroup | QFileDevice::ReadOther);
+            qInfo() << "[main] Copied installed layout" << installedPath << "to user config" << userPath;
+            // Notify the user non-intrusively that a default layout was installed.
+            QMessageBox::information(this, QStringLiteral("ViewTouch"),
+                                     QStringLiteral("A default layout was installed to your user configuration: %1").arg(userPath));
             return LayoutSerializer::loadFromFile(m_engine, userPath);
         } else {
             qWarning() << "[main] Failed to copy installed layout" << installedPath << "->" << userPath;
