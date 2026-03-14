@@ -1,78 +1,85 @@
 # ViewTouchQt
 
-Modern C++ Restaurant POS System — complete rewrite of ViewTouch.
+ViewTouchQt is a lightweight POS (point-of-sale) system implemented in modern C++ with Qt 6.
 
-## Overview
+This repository contains a combined host application, a headless server, and a fullscreen client intended for touchscreen terminals.
 
-ViewTouchQt is a client/server POS system built with **Qt 6** and **C++17**.
+Key binaries
+- `vt_host` — host process (recommended): runs server + main client together
+- `vt_server` — standalone headless TCP server
+- `vt_client` — fullscreen Qt client (remote terminal)
 
-| Component | Binary | Description |
-|---|---|---|
-| **Host** | `vt_host` | Server + main client in one process (primary entry point) |
-| **Server** | `vt_server` | Headless TCP server (standalone, no GUI) |
-| **Client** | `vt_client` | Fullscreen Qt Widgets app (remote terminal) |
+Highlights
+- Design resolution: 1920×1080 with automatic scaling for arbitrary displays
+- Simple binary TCP protocol (default port 12000)
+- Editor mode: visual layout editor with movable elements and persistent layout JSON
 
-- **Design resolution:** 1920 × 1080, auto-scales to any display size.
-- **Protocol:** Raw TCP binary (port 12000 by default).
-- **Platform:** Any Linux distro, X11 or Wayland. Works with XServer XSDL on Android.
+Quick start (build)
 
-## Building
+Prerequisites: CMake >= 3.16, Qt 6.5+, a C++17 compiler
 
 ```bash
-# Prerequisites: CMake >= 3.16, Qt 6.5+, C++17 compiler
 cmake -B build
-cmake --build build
+cmake --build build -j$(nproc)
 ```
 
-## Running
+Run
+
+Start host (server + client):
 
 ```bash
-# Start the host (server + main client together) — recommended
 ./build/src/host/vt_host --port 12000
+```
 
-# Or run server and client separately:
+Run server and client separately (useful for development):
+
+```bash
 ./build/src/server/vt_server --port 12000
 ./build/src/client/vt_client --server 127.0.0.1 --port 12000
-
-# Send a remote terminal to XServer XSDL on Android
-DISPLAY=<android-ip>:0 ./build/src/client/vt_client -platform xcb --server <host-ip> --port 12000
 ```
 
-See [docs/RemoteDisplay.md](docs/RemoteDisplay.md) for detailed remote display instructions.
+Remote display (XServer/X11)
 
-## Project Structure
+To display the client on a remote X server (e.g. XServer XSDL on Android), set `DISPLAY` and run the client with the XCB platform plugin:
 
-```
-CMakeLists.txt              Top-level build
-src/
-  common/                   Shared binary protocol library
-    Protocol.h / .cpp
-  server/                   Headless POS server (standalone)
-    PosServer.h / .cpp
-    ClientSession.h / .cpp
-    main.cpp
-  client/                   Remote terminal client
-    MainWindow.h / .cpp
-    PosClient.h / .cpp
-    ButtonItem.h / .cpp
-    main.cpp
-  host/                     Combined server + main client
-    main.cpp
-docs/
-  Changelog.md
-  RemoteDisplay.md
-packaging/
-  deb/                      Debian packaging (future)
-  rpm/                      RPM packaging (future)
+```bash
+DISPLAY=<remote-ip>:0 ./build/src/client/vt_client -platform xcb --server <host-ip> --port 12000
 ```
 
-## License
+Editor & runtime features
 
-This project is licensed under the **GNU General Public License v3** (or later).
-See the `LICENSE` file for the full text.
+- Visual layout engine with `UiElement` and `ButtonElement` types
+- In-app editor (F2) with selection, move/resize handles, and `PropertyDialog` for per-element settings
+- PropertyDialog improvements:
+  - Dialog is modal and parented to the main window and marked `WindowStaysOnTopHint` so it remains visible above the fullscreen UI
+  - New `Behaviour` setting for buttons: `Blink` (default), `Toggle`, `None`, `Double Tap`
+    - `Blink`: short yellow flash on press/ack
+    - `Toggle`: persistent on/off visual state, toggled on press
+    - `None`: no visual feedback (events still emitted)
+    - `Double Tap`: requires two taps within a short timeout to trigger
+  - New `Layer` setting (-10..10) controls stacking order; higher values draw above lower ones. Layer is persisted in layout JSON and mapped to the QGraphics `zValue`.
 
-## Contact
+Persistence
 
-- **Company:** OrderPi LLC
-- **Author:** Ariel Brambila Pelayo
-- **Email:** arielbrambila117@gmail.com
+- Layouts are saved/loaded as JSON in the application config directory (see `MainWindow::defaultLayoutPath()` — typically `~/.config/ViewTouchQt/layout.json`).
+- `LayoutSerializer` handles serialization of element geometry, colours, behaviour, and layer.
+
+Project structure
+
+- `src/common` — shared protocol and helpers
+- `src/server` — headless TCP server
+- `src/client` — fullscreen Qt client and editor
+- `src/host` — host binary (server + client)
+- `docs` — changelog and platform-specific notes
+
+Contributing
+
+Contributions welcome. Please open issues for bugs or feature requests, and send PRs against `main` with focused changes.
+
+License
+
+This project is licensed under GPLv3 (see `LICENSE` file).
+
+Contact
+
+- Author: Ariel Brambila Pelayo — arielbrambila117@gmail.com
