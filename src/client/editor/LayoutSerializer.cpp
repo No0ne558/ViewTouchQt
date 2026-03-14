@@ -132,6 +132,8 @@ QJsonObject LayoutSerializer::serializeElement(const UiElement *elem)
             obj[QStringLiteral("behavior")] = QStringLiteral("doubletap");
             break;
         }
+        // Serialize layer
+        obj[QStringLiteral("layer")] = elem->layer();
     }
 
     return obj;
@@ -223,6 +225,8 @@ bool LayoutSerializer::deserializeElement(PageWidget *page, const QJsonObject &o
         btn->setInheritable(inheritable);
         if (obj.contains(QStringLiteral("activeColor")))
             btn->setActiveColor(QColor(obj[QStringLiteral("activeColor")].toString()));
+        if (obj.contains(QStringLiteral("layer")))
+            btn->setLayer(obj[QStringLiteral("layer")].toInt(0));
         if (obj.contains(QStringLiteral("behavior"))) {
             QString s = obj[QStringLiteral("behavior")].toString();
             if (s == QLatin1String("blink"))

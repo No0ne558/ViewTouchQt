@@ -77,6 +77,7 @@ private:
     QCheckBox *m_inheritableChk  = nullptr;
     // Button behaviour selector
     QComboBox *m_behaviorCombo = nullptr;
+    QSpinBox  *m_layerBox = nullptr;
 };
 
 } // namespace vt

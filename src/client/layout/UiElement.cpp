@@ -16,6 +16,8 @@ UiElement::UiElement(const QString &id, ElementType type,
     setPos(x, y);
     setAcceptedMouseButtons(Qt::LeftButton);
     setAcceptTouchEvents(true);
+    // Ensure initial z-order matches the layer (default 0)
+    setZValue(static_cast<qreal>(m_layer));
 }
 
 QRectF UiElement::boundingRect() const

@@ -117,8 +117,14 @@ public:
     ButtonBehavior behavior() const { return m_behavior; }
     void setBehavior(ButtonBehavior b) { m_behavior = b; }
 
+    // Layer / stacking order: integer in range [-10..10]. Higher values
+    // are drawn above lower values via QGraphicsItem::zValue.
+    int layer() const { return m_layer; }
+    void setLayer(int l) { m_layer = l; setZValue(static_cast<qreal>(m_layer)); }
+
 protected:
     ButtonBehavior m_behavior = ButtonBehavior::Blink;
+    int m_layer = 0;
 };
 
 } // namespace vt

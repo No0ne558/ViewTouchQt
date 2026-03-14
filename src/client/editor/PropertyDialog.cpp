@@ -171,6 +171,11 @@ void PropertyDialog::setupUi()
     if (behIdx >= 0) m_behaviorCombo->setCurrentIndex(behIdx);
     styleForm->addRow(QStringLiteral("Behaviour:"), m_behaviorCombo);
 
+    m_layerBox = new QSpinBox;
+    m_layerBox->setRange(-10, 10);
+    m_layerBox->setValue(m_element->layer());
+    styleForm->addRow(QStringLiteral("Layer (-10..10):"), m_layerBox);
+
     mainLayout->addWidget(styleGroup);
 
     // ── Type-specific groups (always created, shown/hidden by type) ─────
@@ -229,6 +234,8 @@ void PropertyDialog::applyChanges()
     m_element->setInheritable(m_inheritableChk->isChecked());
     if (m_behaviorCombo)
         m_element->setBehavior(static_cast<UiElement::ButtonBehavior>(m_behaviorCombo->currentData().toInt()));
+    if (m_layerBox)
+        m_element->setLayer(m_layerBox->value());
 
     // ── Type-specific properties (only apply if type NOT changing) ───────
     if (!typeChanged()) {
