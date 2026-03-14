@@ -237,37 +237,7 @@ void MainWindow::openPageManager()
 
 QString MainWindow::defaultLayoutPath() const
 {
-    // 1) Respect explicit override via environment variable.
-    QByteArray env = qgetenv("VIEWTOUCH_DATA_DIR");
-    if (!env.isEmpty()) {
-        QString envDir = QString::fromUtf8(env);
-        QDir d(envDir);
-        if (!d.exists())
-            QDir().mkpath(d.path());
-        return d.filePath(QStringLiteral("layout.json"));
-    }
-
-    // 2) Prefer system install data directory: /opt/viewtouch/dat/layout.json
-    const QString systemDatPath = QStringLiteral("/opt/viewtouch/dat");
-    QDir sysDir(systemDatPath);
-    if (!sysDir.exists()) {
-        // If running as root, try creating the directory so install-time layout is available.
-        if (geteuid() == 0)
-            QDir().mkpath(systemDatPath);
-    }
-    QString sysLayout = sysDir.filePath(QStringLiteral("layout.json"));
-    QFileInfo fi(sysLayout);
-    if (fi.exists()) {
-        if (fi.isReadable())
-            return sysLayout; // system-provided layout present
-    } else {
-        // No layout file yet — if the system dat dir is writable (or we're root) prefer it.
-        QFileInfo dirInfo(sysDir.absolutePath());
-        if (dirInfo.isWritable() || geteuid() == 0)
-            return sysLayout;
-    }
-
-    // 3) Fallback to per-user config location (~/.config/ViewTouchQt/layout.json)
+    // Always save to per-user config location (~/.config/ViewTouchQt/layout.json)
     QString dir = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
     QDir().mkpath(dir);
     return QDir(dir).filePath(QStringLiteral("layout.json"));
@@ -275,11 +245,43 @@ QString MainWindow::defaultLayoutPath() const
 
 bool MainWindow::loadLayoutIfExists()
 {
-    QString path = defaultLayoutPath();
-    if (!QFile::exists(path))
-        return false;
+    // Prefer a user layout if present. If missing, attempt to copy a shipped
+    // system default into the user config dir on first run.
+    QString userPath = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
+    QDir().mkpath(userPath);
+    userPath = QDir(userPath).filePath(QStringLiteral("layout.json"));
 
-    return LayoutSerializer::loadFromFile(m_engine, path);
+    if (QFile::exists(userPath)) {
+        return LayoutSerializer::loadFromFile(m_engine, userPath);
+    }
+
+    // No user layout — look for an installed default layout.
+    // Check VIEWTOUCH_DATA_DIR first, then /opt/viewtouch/dat/layout.json.
+    QString installedPath;
+    QByteArray env = qgetenv("VIEWTOUCH_DATA_DIR");
+    if (!env.isEmpty()) {
+        QString p = QString::fromUtf8(env);
+        installedPath = QDir(p).filePath(QStringLiteral("layout.json"));
+    }
+    if (installedPath.isEmpty() || !QFile::exists(installedPath)) {
+        const QString sys = QStringLiteral("/opt/viewtouch/dat/layout.json");
+        if (QFile::exists(sys))
+            installedPath = sys;
+    }
+
+    if (!installedPath.isEmpty() && QFile::exists(installedPath)) {
+        // Copy installed default into user config so runtime writes go to user space.
+        if (QFile::copy(installedPath, userPath)) {
+            QFile::setPermissions(userPath, QFileDevice::ReadOwner | QFileDevice::WriteOwner |
+                                         QFileDevice::ReadUser | QFileDevice::ReadGroup | QFileDevice::ReadOther);
+            return LayoutSerializer::loadFromFile(m_engine, userPath);
+        } else {
+            qWarning() << "[main] Failed to copy installed layout" << installedPath << "->" << userPath;
+            return false;
+        }
+    }
+
+    return false;
 }
 
 // ── System pages ────────────────────────────────────────────────────────────
