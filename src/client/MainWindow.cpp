@@ -162,8 +162,8 @@ bool MainWindow::saveLayoutWithElevation(const QJsonDocument &doc, const QString
         return false;
     }
 
-    // Use pkexec to run install with mode 0644 to copy file as root.
-    QString prog = QStringLiteral("pkexec");
+    // Use sudo to run install with mode 0644 to copy file as root.
+    QString prog = QStringLiteral("sudo");
     QStringList args;
     args << QStringLiteral("install") << QStringLiteral("-m") << QStringLiteral("0644") << tmp.fileName() << targetPath;
 
