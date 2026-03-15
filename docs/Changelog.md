@@ -23,6 +23,11 @@ All notable changes to this project will be documented in this file.
     - `Double Tap`: requires two taps within a short timeout to trigger the action.
   - Behaviour selector added to `PropertyDialog` UI and persisted in layout JSON as `behavior`.
   - Runtime: `ButtonElement` implements behaviour branching and respects Toggle state across server ACK flashes; `LayoutSerializer` saves/restores behaviour.
+  - Editor: Click Pass Through behaviour (2026-03-14)
+    - Added `PassThrough` option to `UiElement::ButtonBehavior` and the behaviour selector in `PropertyDialog` (`Click Pass Through`).
+    - Elements configured with this behaviour ignore mouse clicks while the visual editor is NOT in edit mode, allowing clicks to pass through to underlying items. Runtime toggles `setAcceptedMouseButtons()` in `EditorOverlay::setEditMode()` to enforce this.
+    - Persisted as `"behavior": "passthrough"` in layout JSON via `LayoutSerializer`.
+    - Files: `src/client/layout/UiElement.h`, `src/client/editor/PropertyDialog.cpp`, `src/client/editor/LayoutSerializer.cpp`, `src/client/editor/EditorOverlay.cpp`.
   
   - Installer: default install prefix now set to `/opt/viewtouch` and install creates `/opt/viewtouch`; `CMAKE_INSTALL_PREFIX` is forced to `/opt/viewtouch` so `cmake --install` places binaries under `/opt/viewtouch/bin` (2026-03-13)
   - Updated `CMakeLists.txt` to enforce the install prefix for consistent installs across systems.

@@ -166,10 +166,13 @@ void PropertyDialog::setupUi()
     m_behaviorCombo->addItem(QStringLiteral("Blink"), static_cast<int>(UiElement::ButtonBehavior::Blink));
     m_behaviorCombo->addItem(QStringLiteral("Toggle"), static_cast<int>(UiElement::ButtonBehavior::Toggle));
     m_behaviorCombo->addItem(QStringLiteral("None"), static_cast<int>(UiElement::ButtonBehavior::None));
+    m_behaviorCombo->addItem(QStringLiteral("Click Pass Through"), static_cast<int>(UiElement::ButtonBehavior::PassThrough));
     m_behaviorCombo->addItem(QStringLiteral("Double Tap"), static_cast<int>(UiElement::ButtonBehavior::DoubleTap));
     int behIdx = m_behaviorCombo->findData(static_cast<int>(m_element->behavior()));
     if (behIdx >= 0) m_behaviorCombo->setCurrentIndex(behIdx);
     styleForm->addRow(QStringLiteral("Behaviour:"), m_behaviorCombo);
+
+    
 
     m_layerBox = new QSpinBox;
     m_layerBox->setRange(-10, 10);
@@ -236,6 +239,8 @@ void PropertyDialog::applyChanges()
         m_element->setBehavior(static_cast<UiElement::ButtonBehavior>(m_behaviorCombo->currentData().toInt()));
     if (m_layerBox)
         m_element->setLayer(m_layerBox->value());
+
+    // Behaviour is handled via the behaviour combo (includes PassThrough option).
 
     // ── Type-specific properties (only apply if type NOT changing) ───────
     if (!typeChanged()) {

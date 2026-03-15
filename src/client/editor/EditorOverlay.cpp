@@ -196,6 +196,20 @@ void EditorOverlay::setEditMode(bool on)
         qDebug() << "[editor] Edit mode OFF";
     }
 
+    // Update elements' mouse acceptance according to edit mode and
+    // their behaviour so PassThrough works at runtime.
+    for (const QString &pageName : m_engine->pageNames()) {
+        PageWidget *pg = m_engine->page(pageName);
+        if (!pg) continue;
+        for (UiElement *elem : pg->elements()) {
+            if (on) {
+                elem->setAcceptedMouseButtons(Qt::LeftButton);
+            } else {
+                elem->setAcceptedMouseButtons(elem->behavior() == UiElement::ButtonBehavior::PassThrough ? Qt::NoButton : Qt::LeftButton);
+            }
+        }
+    }
+
     emit editModeChanged(on);
 }
 

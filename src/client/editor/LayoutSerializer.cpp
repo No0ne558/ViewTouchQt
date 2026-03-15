@@ -128,12 +128,16 @@ QJsonObject LayoutSerializer::serializeElement(const UiElement *elem)
         case UiElement::ButtonBehavior::None:
             obj[QStringLiteral("behavior")] = QStringLiteral("none");
             break;
+        case UiElement::ButtonBehavior::PassThrough:
+            obj[QStringLiteral("behavior")] = QStringLiteral("passthrough");
+            break;
         case UiElement::ButtonBehavior::DoubleTap:
             obj[QStringLiteral("behavior")] = QStringLiteral("doubletap");
             break;
         }
         // Serialize layer
         obj[QStringLiteral("layer")] = elem->layer();
+        // Behaviour stored above includes PassThrough option
     }
 
     return obj;
@@ -235,9 +239,13 @@ bool LayoutSerializer::deserializeElement(PageWidget *page, const QJsonObject &o
                 btn->setBehavior(UiElement::ButtonBehavior::Toggle);
             else if (s == QLatin1String("none"))
                 btn->setBehavior(UiElement::ButtonBehavior::None);
+            else if (s == QLatin1String("passthrough"))
+                btn->setBehavior(UiElement::ButtonBehavior::PassThrough);
             else if (s == QLatin1String("doubletap"))
                 btn->setBehavior(UiElement::ButtonBehavior::DoubleTap);
         }
+        // Ensure runtime mouse acceptance matches behaviour when loaded
+        btn->setAcceptedMouseButtons(btn->behavior() == UiElement::ButtonBehavior::PassThrough ? Qt::NoButton : Qt::LeftButton);
     } else {
         // Skip any non-button element types. This intentionally drops
         // elements like labels, panels, pin entries, keypads, actions, etc.

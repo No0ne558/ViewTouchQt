@@ -31,6 +31,7 @@ class UiElement : public QGraphicsObject {
     Q_OBJECT
     Q_PROPERTY(QString elementId READ elementId)
     Q_PROPERTY(QString label READ label WRITE setLabel NOTIFY labelChanged)
+    
 public:
     explicit UiElement(const QString &id, ElementType type,
                        qreal x, qreal y, qreal w, qreal h,
@@ -85,10 +86,13 @@ public:
     bool isInheritable() const { return m_inheritable; }
     void setInheritable(bool on) { m_inheritable = on; }
 
+    
+
 signals:
     void labelChanged();
     void elementMoved(qreal x, qreal y);
     void elementResized(qreal w, qreal h);
+
 
 protected:
     QRectF  m_rect;
@@ -111,6 +115,7 @@ public:
         Blink = 0,
         Toggle,
         None,
+        PassThrough,
         DoubleTap,
     };
 
