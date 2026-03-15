@@ -10,6 +10,7 @@ add_executable(vt_client
     layout/PageWidget.cpp
     layout/LayoutEngine.cpp
     editor/EditorOverlay.cpp
+    editor/GhostItem.cpp
     editor/PropertyDialog.cpp
     editor/LayoutSerializer.cpp
     editor/PageManagerDialog.cpp

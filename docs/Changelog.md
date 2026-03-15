@@ -9,6 +9,11 @@ All notable changes to this project will be documented in this file.
 - Implemented shared binary protocol library (`src/common/Protocol`)
 - Added `ButtonItem`: grey button that flashes yellow on press/ack
 
+ - Editor: ghost drag overlay for element moves (2026-03-14)
+   - Added `GhostItem` (`src/client/editor/GhostItem.h`, `src/client/editor/GhostItem.cpp`) — lightweight QGraphicsItem used as a drag preview to avoid per-frame painting of heavy element `paint()` implementations.
+   - `EditorOverlay` now shows the ghost on drag start, moves the ghost during mouse move, and applies the final snapped delta to real `UiElement` instances on mouse release (reduces renderer churn and improves drag responsiveness).
+   - Updated `src/client/CMakeLists.txt` and `src/host/CMakeLists.txt` to include the new source; verified local build (`vt_client`, `vt_host`) succeeds.
+
 - Editor: keep Properties dialog on top and new button behaviours (2026-03-13)
   - `PropertyDialog` is now parented to the main window and created modal with `WindowStaysOnTopHint` so it remains above the main window and cannot be lost behind it.
   - Added configurable button behaviours: `Blink` (default), `Toggle`, `None`, and `Double Tap`.

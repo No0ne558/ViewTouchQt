@@ -20,6 +20,7 @@
 namespace vt {
 
 class EditorOverlay;  // forward declaration
+class GhostItem;
 
 /// Small square handle for resizing an element from a corner or edge.
 class ResizeHandle : public QGraphicsRectItem {
@@ -146,6 +147,12 @@ private:
     /// Cancel rubber-band without selecting.
     void cancelRubberBand();
 
+    // Ghost drag helpers
+    void createGhostForSelection(const QList<UiElement *> &selection);
+    void updateGhostPosition(const QPointF &scenePos);
+    void commitGhostMove(const QPointF &scenePos);
+    void cancelGhostMove();
+
 private:
 
     LayoutEngine   *m_engine     = nullptr;
@@ -172,6 +179,13 @@ private:
     QPointF m_dragStartScene;
     QPointF m_dragStartPos;                        // first element's start pos
     QHash<UiElement *, QPointF> m_dragStartPositions;  // all selected elements
+    
+    // Ghost drag state: when true, a lightweight ghost item is shown
+    // during mouse moves and real items are updated only on commit.
+    GhostItem *m_dragGhost = nullptr;
+    bool       m_usingGhostDuringDrag = false;
+    bool       m_enableGhostDrag = true; // runtime toggle for testing
+    QRectF     m_dragGhostStartRect; // bounding rect of selection at drag start (scene coords)
 
     // ── Rubber-band selection ───────────────────────────────────────────
     bool    m_rubberBanding       = false;

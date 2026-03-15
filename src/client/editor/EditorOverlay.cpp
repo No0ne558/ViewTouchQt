@@ -4,6 +4,7 @@
 #include "EditorOverlay.h"
 #include "../layout/ButtonElement.h"
 #include "../layout/PageWidget.h"
+#include "GhostItem.h"
 
 #include <QApplication>
 #include <QCursor>
@@ -383,6 +384,11 @@ bool EditorOverlay::eventFilter(QObject *watched, QEvent *event)
                     for (auto *sel : m_selection)
                         m_dragStartPositions.insert(sel, sel->pos());
                     m_dragStartPos = m_selection.first()->pos();
+                    // Create ghost overlay to avoid moving heavy items each frame
+                    if (m_enableGhostDrag) {
+                        createGhostForSelection(m_selection);
+                        m_usingGhostDuringDrag = (m_dragGhost != nullptr);
+                    }
                 }
             }
             return true;  // consume event — don't trigger button clicks
@@ -411,11 +417,17 @@ bool EditorOverlay::eventFilter(QObject *watched, QEvent *event)
 
         if (m_dragging && !m_selection.isEmpty()) {
             QPointF delta = me->scenePos() - m_dragStartScene;
-            for (auto *sel : m_selection) {
-                QPointF startPos = m_dragStartPositions.value(sel);
-                sel->setPos(snapToGrid(startPos + delta));
+            if (m_usingGhostDuringDrag && m_dragGhost) {
+                QPointF newTopLeft = m_dragGhostStartRect.topLeft() + delta;
+                newTopLeft = snapToGrid(newTopLeft);
+                m_dragGhost->setPos(newTopLeft);
+            } else {
+                for (auto *sel : m_selection) {
+                    QPointF startPos = m_dragStartPositions.value(sel);
+                    sel->setPos(snapToGrid(startPos + delta));
+                }
+                updateHandles();
             }
-            updateHandles();
             return true;
         }
     }
@@ -426,9 +438,15 @@ bool EditorOverlay::eventFilter(QObject *watched, QEvent *event)
             return true;
         }
         if (m_dragging) {
-            m_dragging = false;
-            m_dragStartPositions.clear();
-            updateHandles();
+            auto *me = static_cast<QGraphicsSceneMouseEvent *>(event);
+            // If using ghost, commit the final position to real items.
+            if (m_usingGhostDuringDrag) {
+                commitGhostMove(me->scenePos());
+            } else {
+                m_dragging = false;
+                m_dragStartPositions.clear();
+                updateHandles();
+            }
             return true;
         }
     }
@@ -565,6 +583,106 @@ void EditorOverlay::updateHandles()
         for (auto *h : it->handles)
             h->reposition(r);
     }
+}
+
+// Create a lightweight ghost item that covers the bounding box of the
+// current selection. The real items are left untouched until commit.
+void EditorOverlay::createGhostForSelection(const QList<UiElement *> &selection)
+{
+    if (m_dragGhost) {
+        m_scene->removeItem(m_dragGhost);
+        delete m_dragGhost;
+        m_dragGhost = nullptr;
+    }
+
+    if (selection.isEmpty())
+        return;
+
+    // Compute selection bounding rect in scene coordinates
+    QRectF bounds;
+    bool first = true;
+    for (auto *el : selection) {
+        QRectF r(el->pos(), QSizeF(el->elementW(), el->elementH()));
+        if (first) { bounds = r; first = false; }
+        else bounds = bounds.united(r);
+    }
+
+    m_dragGhostStartRect = bounds;
+
+    // Label only for single-element selection (use element label)
+    QString label;
+    if (selection.size() == 1)
+        label = selection.first()->label();
+
+    m_dragGhost = new GhostItem(bounds.size(), label);
+    m_dragGhost->setPos(bounds.topLeft());
+    m_dragGhost->setZValue(30000);
+    m_scene->addItem(m_dragGhost);
+
+    // Hide selection decorations while dragging to avoid per-frame updates
+    for (auto it = m_decor.begin(); it != m_decor.end(); ++it) {
+        if (it->selRect) it->selRect->setVisible(false);
+        for (auto *h : it->handles) h->setVisible(false);
+    }
+}
+
+void EditorOverlay::commitGhostMove(const QPointF & /*scenePos*/)
+{
+    if (!m_dragGhost) {
+        // Nothing to commit
+        m_dragging = false;
+        m_usingGhostDuringDrag = false;
+        m_dragStartPositions.clear();
+        updateHandles();
+        return;
+    }
+
+    // Compute delta from original bounding rect top-left to ghost position
+    QPointF delta = m_dragGhost->pos() - m_dragGhostStartRect.topLeft();
+
+    // Apply to real items
+    for (auto *sel : m_selection) {
+        QPointF startPos = m_dragStartPositions.value(sel);
+        sel->setPos(snapToGrid(startPos + delta));
+    }
+
+    // Remove ghost
+    m_scene->removeItem(m_dragGhost);
+    delete m_dragGhost;
+    m_dragGhost = nullptr;
+
+    m_usingGhostDuringDrag = false;
+    m_dragging = false;
+    m_dragStartPositions.clear();
+
+    // Restore selection decorations
+    for (auto it = m_decor.begin(); it != m_decor.end(); ++it) {
+        if (it->selRect) it->selRect->setVisible(true);
+        for (auto *h : it->handles) h->setVisible(true);
+    }
+
+    updateHandles();
+}
+
+void EditorOverlay::cancelGhostMove()
+{
+    if (m_dragGhost) {
+        m_scene->removeItem(m_dragGhost);
+        delete m_dragGhost;
+        m_dragGhost = nullptr;
+    }
+
+    m_usingGhostDuringDrag = false;
+    m_dragging = false;
+    m_dragStartPositions.clear();
+
+    // Restore decorations
+    for (auto it = m_decor.begin(); it != m_decor.end(); ++it) {
+        if (it->selRect) it->selRect->setVisible(true);
+        for (auto *h : it->handles) h->setVisible(true);
+    }
+
+    updateHandles();
 }
 
 void EditorOverlay::hideHandles()

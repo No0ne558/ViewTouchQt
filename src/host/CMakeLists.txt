@@ -22,6 +22,7 @@ target_sources(vt_host PRIVATE
     ${CMAKE_SOURCE_DIR}/src/client/layout/LayoutEngine.cpp
     # Editor sources
     ${CMAKE_SOURCE_DIR}/src/client/editor/EditorOverlay.cpp
+    ${CMAKE_SOURCE_DIR}/src/client/editor/GhostItem.cpp
     ${CMAKE_SOURCE_DIR}/src/client/editor/PropertyDialog.cpp
     ${CMAKE_SOURCE_DIR}/src/client/editor/LayoutSerializer.cpp
     ${CMAKE_SOURCE_DIR}/src/client/editor/PageManagerDialog.cpp
