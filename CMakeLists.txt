@@ -20,7 +20,8 @@ if(NOT DEFINED CMAKE_INSTALL_PREFIX OR CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAU
 endif()
 
 # ----- Find Qt 6 -------------------------------------------------------------
-find_package(Qt6 6.5 REQUIRED COMPONENTS Widgets Network)
+# Allow Qt 6 >= 6.4 so the system Qt (6.4.2) or newer (6.10.x) is accepted
+find_package(Qt6 6.4 REQUIRED COMPONENTS Widgets Network)
 
 # ----- Version info (git hash + build date) -----------------------------------
 execute_process(
