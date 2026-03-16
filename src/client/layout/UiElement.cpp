@@ -22,7 +22,9 @@ UiElement::UiElement(const QString &id, ElementType type,
 
 QRectF UiElement::boundingRect() const
 {
-    return m_rect;
+    // Include a small padding to accommodate outer shadows and visual effects
+    const qreal pad = 8.0;
+    return m_rect.adjusted(-pad, -pad, pad, pad);
 }
 
 void UiElement::moveTo(qreal x, qreal y)
@@ -70,6 +72,14 @@ void UiElement::setEdgeStyle(UiElement::EdgeStyle s)
 {
     if (m_edgeStyle != s) {
         m_edgeStyle = s;
+        update();
+    }
+}
+
+void UiElement::setShadowIntensity(UiElement::ShadowIntensity s)
+{
+    if (m_shadowIntensity != s) {
+        m_shadowIntensity = s;
         update();
     }
 }

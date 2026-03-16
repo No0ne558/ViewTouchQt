@@ -10,6 +10,14 @@ All notable changes to this project will be documented in this file.
    - `ButtonElement` painting updated to support multiple edge styles (Raised, Inset, Raised2/3, Inset2/3, Double, Border, Outline, Rounded, None).
    - Removed legacy `Sand` style and map any legacy `"sand"` token to `border` on load for compatibility.
 
+  - Editor: Shadow intensity (2026-03-15)
+    - Added configurable `Shadow intensity` for element edges with options `None`, `Min`, `Med`, and `Max`.
+    - Shadow intensity is serialized as `shadowIntensity` (values: `none`, `min`, `med`, `max`) and defaults to `med` for legacy layouts.
+
+      - Rendering: draw a unified outer drop shadow behind elements and expand element bounding boxes to avoid clipping (see `UiElement::boundingRect()` padding).
+      - Cleanup: removed the internal gradient overlay and per-case inner shadow draws from `ButtonElement::paint()` so shadows are consistently rendered outside the element and controlled solely via `Shadow intensity`.
+
+
 - Added `vt_host`: combined server + main client binary (primary entry point)
 - Implemented `vt_server`: headless TCP server with heartbeat and client session management
 - Implemented `vt_client`: fullscreen Qt Widgets terminal with auto-scaling 1920×1080 UI

@@ -84,6 +84,36 @@ void ButtonElement::paint(QPainter *painter,
     painter->setRenderHint(QPainter::Antialiasing);
 
     const auto style = edgeStyle();
+    // Compute a shadow intensity multiplier from element setting
+    double shadowMul = 1.0;
+    switch (shadowIntensity()) {
+    case UiElement::ShadowIntensity::None:
+        shadowMul = 0.0;
+        break;
+    case UiElement::ShadowIntensity::Min:
+        shadowMul = 0.6;
+        break;
+    case UiElement::ShadowIntensity::Med:
+        shadowMul = 1.0;
+        break;
+    case UiElement::ShadowIntensity::Max:
+        shadowMul = 1.5;
+        break;
+    }
+
+    // Draw base outer shadow behind the element (outside the button)
+    if (shadowMul > 0.0 && style != UiElement::EdgeStyle::None) {
+        const int baseAlpha = 60;
+        const qreal baseOffset = 2.0;
+        int a = qBound(1, int(baseAlpha * shadowMul), 255);
+        qreal off = baseOffset * shadowMul;
+        painter->save();
+        painter->setPen(Qt::NoPen);
+        painter->setBrush(QColor(0, 0, 0, a));
+        const qreal rr = qMin(m_cornerRadius, qreal(6.0));
+        painter->drawRoundedRect(m_rect.translated(off, off), rr, rr);
+        painter->restore();
+    }
     switch (style) {
     case UiElement::EdgeStyle::Flat:
         painter->setBrush(m_currentColor);
@@ -124,10 +154,7 @@ void ButtonElement::paint(QPainter *painter,
                               QPointF(m_rect.right() - i - 1.0, m_rect.bottom() - i - 1.0));
         }
 
-        // Slight outer drop shadow for depth
-        painter->setPen(Qt::NoPen);
-        painter->setBrush(QColor(0, 0, 0, 60));
-        painter->drawRoundedRect(m_rect.translated(2.0, 2.0), r, r);
+        // outer shadow handled globally above
 
         break;
     }
@@ -148,9 +175,7 @@ void ButtonElement::paint(QPainter *painter,
             painter->drawLine(QPointF(m_rect.left() + i, m_rect.bottom() - i - 1.0), QPointF(m_rect.right() - i - 1.0, m_rect.bottom() - i - 1.0));
             painter->drawLine(QPointF(m_rect.right() - i - 1.0, m_rect.top() + i), QPointF(m_rect.right() - i - 1.0, m_rect.bottom() - i - 1.0));
         }
-        painter->setPen(Qt::NoPen);
-        painter->setBrush(QColor(0, 0, 0, 40));
-        painter->drawRoundedRect(m_rect.translated(1.5, 1.5), r, r);
+        // outer shadow handled globally above
         break;
     }
     case UiElement::EdgeStyle::Raised3: {
@@ -170,9 +195,7 @@ void ButtonElement::paint(QPainter *painter,
             painter->drawLine(QPointF(m_rect.left() + i, m_rect.bottom() - i - 1.0), QPointF(m_rect.right() - i - 1.0, m_rect.bottom() - i - 1.0));
             painter->drawLine(QPointF(m_rect.right() - i - 1.0, m_rect.top() + i), QPointF(m_rect.right() - i - 1.0, m_rect.bottom() - i - 1.0));
         }
-        painter->setPen(Qt::NoPen);
-        painter->setBrush(QColor(0, 0, 0, 56));
-        painter->drawRoundedRect(m_rect.translated(2.0, 2.0), r, r);
+        // outer shadow handled globally above
         break;
     }
     case UiElement::EdgeStyle::Inset: {
@@ -361,6 +384,8 @@ void ButtonElement::paint(QPainter *painter,
         painter->setPen(m_textColor);
         painter->drawText(m_rect, Qt::AlignCenter, m_label);
     }
+
+        // outer shadow is drawn above (outside the element)
 }
 
 void ButtonElement::flashAck()
