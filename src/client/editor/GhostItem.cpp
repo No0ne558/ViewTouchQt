@@ -42,7 +42,7 @@ void GhostItem::paint(QPainter *painter, const QStyleOptionGraphicsItem * /*opti
 
     painter->setBrush(fill);
     painter->setPen(QPen(stroke, 1.0));
-    painter->drawRoundedRect(m_rect, 6.0, 6.0);
+    painter->drawRect(m_rect);
 
     if (!m_label.isEmpty()) {
         painter->setPen(Qt::white);

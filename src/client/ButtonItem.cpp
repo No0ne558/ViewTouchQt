@@ -38,7 +38,7 @@ void ButtonItem::paint(QPainter *painter,
     painter->setRenderHint(QPainter::Antialiasing);
     painter->setBrush(m_currentColor);
     painter->setPen(QPen(Qt::black, 3));
-    painter->drawRoundedRect(m_rect, 16, 16);
+    painter->drawRect(m_rect);
 
     // Label
     QFont font("Sans", 32, QFont::Bold);

@@ -66,6 +66,14 @@ void UiElement::setCornerRadius(qreal r)
     update();
 }
 
+void UiElement::setEdgeStyle(UiElement::EdgeStyle s)
+{
+    if (m_edgeStyle != s) {
+        m_edgeStyle = s;
+        update();
+    }
+}
+
 void UiElement::setFontSize(int size)
 {
     m_fontSize = size;

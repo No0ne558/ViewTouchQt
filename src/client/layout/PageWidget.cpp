@@ -109,7 +109,7 @@ UiElement *PageWidget::replaceElementType(const QString &id, ElementType newType
     const QColor  bg     = old->bgColor();
     const QColor  text   = old->textColor();
     const int     fsize  = old->fontSize();
-    const qreal   radius = old->cornerRadius();
+    const UiElement::EdgeStyle style = old->edgeStyle();
 
     // Remove old element from scene and hash (and delete it)
     if (m_currentScene)
@@ -131,7 +131,7 @@ UiElement *PageWidget::replaceElementType(const QString &id, ElementType newType
         created->setBgColor(bg);
         created->setTextColor(text);
         created->setFontSize(fsize);
-        created->setCornerRadius(radius);
+        created->setEdgeStyle(style);
         if (created->elementType() == ElementType::Button) {
             auto *cb = static_cast<ButtonElement *>(created);
             if (!imagePath.isEmpty()) cb->setImagePath(imagePath);

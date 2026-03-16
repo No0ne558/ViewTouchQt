@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+ - Editor: Edge/Appearance updates (2026-03-15)
+   - Replaced `cornerRadius` with a new `EdgeStyle` option in the Element Properties UI; removed the Corner Radius control.
+   - Added `EdgeStyle` enum to `UiElement` and an `Edge style` selector in `PropertyDialog`.
+   - Introduced `edges` array in layout JSON; `LayoutSerializer` now emits/reads human-friendly tokens and falls back to legacy `cornerRadius` values when present.
+   - `ButtonElement` painting updated to support multiple edge styles (Raised, Inset, Raised2/3, Inset2/3, Double, Border, Outline, Rounded, None).
+   - Removed legacy `Sand` style and map any legacy `"sand"` token to `border` on load for compatibility.
+
 - Added `vt_host`: combined server + main client binary (primary entry point)
 - Implemented `vt_server`: headless TCP server with heartbeat and client session management
 - Implemented `vt_client`: fullscreen Qt Widgets terminal with auto-scaling 1920×1080 UI

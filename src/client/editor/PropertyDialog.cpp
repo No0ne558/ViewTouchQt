@@ -163,10 +163,22 @@ void PropertyDialog::setupUi()
     });
     styleForm->addRow(QStringLiteral("Text colour:"), m_textColorBtn);
 
-    m_radiusBox = new QSpinBox;
-    m_radiusBox->setRange(0, 100);
-    m_radiusBox->setValue(static_cast<int>(m_element->cornerRadius()));
-    styleForm->addRow(QStringLiteral("Corner radius:"), m_radiusBox);
+    m_edgeStyleCombo = new QComboBox;
+    m_edgeStyleCombo->addItem(QStringLiteral("Flat"), static_cast<int>(UiElement::EdgeStyle::Flat));
+    m_edgeStyleCombo->addItem(QStringLiteral("Raised"), static_cast<int>(UiElement::EdgeStyle::Raised));
+    m_edgeStyleCombo->addItem(QStringLiteral("Raised (2)"), static_cast<int>(UiElement::EdgeStyle::Raised2));
+    m_edgeStyleCombo->addItem(QStringLiteral("Raised (3)"), static_cast<int>(UiElement::EdgeStyle::Raised3));
+    m_edgeStyleCombo->addItem(QStringLiteral("Inset"), static_cast<int>(UiElement::EdgeStyle::Inset));
+    m_edgeStyleCombo->addItem(QStringLiteral("Inset (2)"), static_cast<int>(UiElement::EdgeStyle::Inset2));
+    m_edgeStyleCombo->addItem(QStringLiteral("Inset (3)"), static_cast<int>(UiElement::EdgeStyle::Inset3));
+    m_edgeStyleCombo->addItem(QStringLiteral("Double"), static_cast<int>(UiElement::EdgeStyle::Double));
+    m_edgeStyleCombo->addItem(QStringLiteral("Border"), static_cast<int>(UiElement::EdgeStyle::Border));
+    m_edgeStyleCombo->addItem(QStringLiteral("Outline"), static_cast<int>(UiElement::EdgeStyle::Outline));
+    m_edgeStyleCombo->addItem(QStringLiteral("Rounded"), static_cast<int>(UiElement::EdgeStyle::Rounded));
+    m_edgeStyleCombo->addItem(QStringLiteral("None"), static_cast<int>(UiElement::EdgeStyle::None));
+    int esIdx = m_edgeStyleCombo->findData(static_cast<int>(m_element->edgeStyle()));
+    if (esIdx >= 0) m_edgeStyleCombo->setCurrentIndex(esIdx);
+    styleForm->addRow(QStringLiteral("Edge style:"), m_edgeStyleCombo);
 
     // Behaviour selector (Button only)
     m_behaviorCombo = new QComboBox;
@@ -328,7 +340,8 @@ void PropertyDialog::applyChanges()
     m_element->resizeTo(m_wBox->value(), m_hBox->value());
     m_element->setBgColor(m_bgColor);
     m_element->setTextColor(m_textColor);
-    m_element->setCornerRadius(m_radiusBox->value());
+    if (m_edgeStyleCombo)
+        m_element->setEdgeStyle(static_cast<UiElement::EdgeStyle>(m_edgeStyleCombo->currentData().toInt()));
     m_element->setInheritable(m_inheritableChk->isChecked());
     if (m_behaviorCombo)
         m_element->setBehavior(static_cast<UiElement::ButtonBehavior>(m_behaviorCombo->currentData().toInt()));

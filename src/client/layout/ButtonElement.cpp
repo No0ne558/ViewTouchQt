@@ -6,6 +6,7 @@
 #include <QFont>
 #include <QGraphicsSceneMouseEvent>
 #include <QPainter>
+#include <QLinearGradient>
 #include <QFile>
 #include <QFileInfo>
 #include <QDir>
@@ -81,9 +82,258 @@ void ButtonElement::paint(QPainter *painter,
                           QWidget * /*widget*/)
 {
     painter->setRenderHint(QPainter::Antialiasing);
-    painter->setBrush(m_currentColor);
-    painter->setPen(QPen(Qt::black, 3));
-    painter->drawRoundedRect(m_rect, m_cornerRadius, m_cornerRadius);
+
+    const auto style = edgeStyle();
+    switch (style) {
+    case UiElement::EdgeStyle::Flat:
+        painter->setBrush(m_currentColor);
+        painter->setPen(QPen(Qt::black, 3));
+        painter->drawRect(m_rect);
+        break;
+    case UiElement::EdgeStyle::Raised: {
+        // Original-style framed edge: draw inner shape and outer frame
+        const int b = qBound(2, int(qMin(m_rect.width(), m_rect.height()) * 0.06), 8); // frame thickness
+        const qreal r = qMin(m_cornerRadius, qreal(6.0));
+
+        // Fill inner area (frame leaves a border)
+        QRectF inner = m_rect.adjusted(b, b, -b, -b);
+        painter->setPen(Qt::NoPen);
+        painter->setBrush(m_currentColor);
+        painter->drawRoundedRect(inner, r, r);
+
+        // Frame colours: top/left = light, bottom/right = dark
+        QColor light = m_currentColor.lighter(160);
+        QColor dark  = m_currentColor.darker(180);
+
+        // Draw frame lines similar to original Layer::Frame behavior
+        for (int i = 0; i < b; ++i) {
+            // top
+            painter->setPen(QPen(light, 1));
+            painter->drawLine(QPointF(m_rect.left() + i, m_rect.top() + i),
+                              QPointF(m_rect.right() - i - 1.0, m_rect.top() + i));
+            // left
+            painter->drawLine(QPointF(m_rect.left() + i, m_rect.top() + i),
+                              QPointF(m_rect.left() + i, m_rect.bottom() - i - 1.0));
+
+            // bottom
+            painter->setPen(QPen(dark, 1));
+            painter->drawLine(QPointF(m_rect.left() + i, m_rect.bottom() - i - 1.0),
+                              QPointF(m_rect.right() - i - 1.0, m_rect.bottom() - i - 1.0));
+            // right
+            painter->drawLine(QPointF(m_rect.right() - i - 1.0, m_rect.top() + i),
+                              QPointF(m_rect.right() - i - 1.0, m_rect.bottom() - i - 1.0));
+        }
+
+        // Slight outer drop shadow for depth
+        painter->setPen(Qt::NoPen);
+        painter->setBrush(QColor(0, 0, 0, 60));
+        painter->drawRoundedRect(m_rect.translated(2.0, 2.0), r, r);
+
+        break;
+    }
+    case UiElement::EdgeStyle::Raised2: {
+        const int b = qBound(3, int(qMin(m_rect.width(), m_rect.height()) * 0.07), 10);
+        const qreal r = qMin(m_cornerRadius, qreal(6.0));
+        QRectF inner = m_rect.adjusted(b, b, -b, -b);
+        painter->setPen(Qt::NoPen);
+        painter->setBrush(m_currentColor);
+        painter->drawRoundedRect(inner, r, r);
+        QColor light = m_currentColor.lighter(190);
+        QColor dark  = m_currentColor.darker(220);
+        for (int i = 0; i < b; ++i) {
+            painter->setPen(QPen(light, 1));
+            painter->drawLine(QPointF(m_rect.left() + i, m_rect.top() + i), QPointF(m_rect.right() - i - 1.0, m_rect.top() + i));
+            painter->drawLine(QPointF(m_rect.left() + i, m_rect.top() + i), QPointF(m_rect.left() + i, m_rect.bottom() - i - 1.0));
+            painter->setPen(QPen(dark, 1));
+            painter->drawLine(QPointF(m_rect.left() + i, m_rect.bottom() - i - 1.0), QPointF(m_rect.right() - i - 1.0, m_rect.bottom() - i - 1.0));
+            painter->drawLine(QPointF(m_rect.right() - i - 1.0, m_rect.top() + i), QPointF(m_rect.right() - i - 1.0, m_rect.bottom() - i - 1.0));
+        }
+        painter->setPen(Qt::NoPen);
+        painter->setBrush(QColor(0, 0, 0, 40));
+        painter->drawRoundedRect(m_rect.translated(1.5, 1.5), r, r);
+        break;
+    }
+    case UiElement::EdgeStyle::Raised3: {
+        const int b = qBound(4, int(qMin(m_rect.width(), m_rect.height()) * 0.08), 12);
+        const qreal r = qMin(m_cornerRadius, qreal(6.0));
+        QRectF inner = m_rect.adjusted(b, b, -b, -b);
+        painter->setPen(Qt::NoPen);
+        painter->setBrush(m_currentColor);
+        painter->drawRoundedRect(inner, r, r);
+        QColor light = m_currentColor.lighter(220);
+        QColor dark  = m_currentColor.darker(240);
+        for (int i = 0; i < b; ++i) {
+            painter->setPen(QPen(light, 1));
+            painter->drawLine(QPointF(m_rect.left() + i, m_rect.top() + i), QPointF(m_rect.right() - i - 1.0, m_rect.top() + i));
+            painter->drawLine(QPointF(m_rect.left() + i, m_rect.top() + i), QPointF(m_rect.left() + i, m_rect.bottom() - i - 1.0));
+            painter->setPen(QPen(dark, 1));
+            painter->drawLine(QPointF(m_rect.left() + i, m_rect.bottom() - i - 1.0), QPointF(m_rect.right() - i - 1.0, m_rect.bottom() - i - 1.0));
+            painter->drawLine(QPointF(m_rect.right() - i - 1.0, m_rect.top() + i), QPointF(m_rect.right() - i - 1.0, m_rect.bottom() - i - 1.0));
+        }
+        painter->setPen(Qt::NoPen);
+        painter->setBrush(QColor(0, 0, 0, 56));
+        painter->drawRoundedRect(m_rect.translated(2.0, 2.0), r, r);
+        break;
+    }
+    case UiElement::EdgeStyle::Inset: {
+        // Original-style inset/frame: swap light/dark on edges
+        const int b = qBound(2, int(qMin(m_rect.width(), m_rect.height()) * 0.06), 8);
+        const qreal r = qMin(m_cornerRadius, qreal(6.0));
+
+        // Fill inner area
+        QRectF inner = m_rect.adjusted(b, b, -b, -b);
+        painter->setPen(Qt::NoPen);
+        painter->setBrush(m_currentColor.darker(110));
+        painter->drawRoundedRect(inner, r, r);
+
+        // Inset flips highlight/shadow
+        QColor light = m_currentColor.darker(180); // top/left darker for inset
+        QColor dark  = m_currentColor.lighter(160); // bottom/right lighter for inset
+
+        for (int i = 0; i < b; ++i) {
+            // top (dark)
+            painter->setPen(QPen(light, 1));
+            painter->drawLine(QPointF(m_rect.left() + i, m_rect.top() + i),
+                              QPointF(m_rect.right() - i - 1.0, m_rect.top() + i));
+            // left
+            painter->drawLine(QPointF(m_rect.left() + i, m_rect.top() + i),
+                              QPointF(m_rect.left() + i, m_rect.bottom() - i - 1.0));
+
+            // bottom (light)
+            painter->setPen(QPen(dark, 1));
+            painter->drawLine(QPointF(m_rect.left() + i, m_rect.bottom() - i - 1.0),
+                              QPointF(m_rect.right() - i - 1.0, m_rect.bottom() - i - 1.0));
+            // right
+            painter->drawLine(QPointF(m_rect.right() - i - 1.0, m_rect.top() + i),
+                              QPointF(m_rect.right() - i - 1.0, m_rect.bottom() - i - 1.0));
+        }
+
+        break;
+    }
+    case UiElement::EdgeStyle::Inset2: {
+        const int b = qBound(3, int(qMin(m_rect.width(), m_rect.height()) * 0.07), 10);
+        const qreal r = qMin(m_cornerRadius, qreal(6.0));
+        QRectF inner = m_rect.adjusted(b, b, -b, -b);
+        painter->setPen(Qt::NoPen);
+        painter->setBrush(m_currentColor.darker(120));
+        painter->drawRoundedRect(inner, r, r);
+        QColor topcol = m_currentColor.darker(200);
+        QColor botcol = m_currentColor.lighter(180);
+        for (int i = 0; i < b; ++i) {
+            painter->setPen(QPen(topcol, 1));
+            painter->drawLine(QPointF(m_rect.left() + i, m_rect.top() + i), QPointF(m_rect.right() - i - 1.0, m_rect.top() + i));
+            painter->drawLine(QPointF(m_rect.left() + i, m_rect.top() + i), QPointF(m_rect.left() + i, m_rect.bottom() - i - 1.0));
+            painter->setPen(QPen(botcol, 1));
+            painter->drawLine(QPointF(m_rect.left() + i, m_rect.bottom() - i - 1.0), QPointF(m_rect.right() - i - 1.0, m_rect.bottom() - i - 1.0));
+            painter->drawLine(QPointF(m_rect.right() - i - 1.0, m_rect.top() + i), QPointF(m_rect.right() - i - 1.0, m_rect.bottom() - i - 1.0));
+        }
+        break;
+    }
+    case UiElement::EdgeStyle::Inset3: {
+        const int b = qBound(4, int(qMin(m_rect.width(), m_rect.height()) * 0.08), 12);
+        const qreal r = qMin(m_cornerRadius, qreal(6.0));
+        QRectF inner = m_rect.adjusted(b, b, -b, -b);
+        painter->setPen(Qt::NoPen);
+        painter->setBrush(m_currentColor.darker(140));
+        painter->drawRoundedRect(inner, r, r);
+        QColor topcol = m_currentColor.darker(240);
+        QColor botcol = m_currentColor.lighter(200);
+        for (int i = 0; i < b; ++i) {
+            painter->setPen(QPen(topcol, 1));
+            painter->drawLine(QPointF(m_rect.left() + i, m_rect.top() + i), QPointF(m_rect.right() - i - 1.0, m_rect.top() + i));
+            painter->drawLine(QPointF(m_rect.left() + i, m_rect.top() + i), QPointF(m_rect.left() + i, m_rect.bottom() - i - 1.0));
+            painter->setPen(QPen(botcol, 1));
+            painter->drawLine(QPointF(m_rect.left() + i, m_rect.bottom() - i - 1.0), QPointF(m_rect.right() - i - 1.0, m_rect.bottom() - i - 1.0));
+            painter->drawLine(QPointF(m_rect.right() - i - 1.0, m_rect.top() + i), QPointF(m_rect.right() - i - 1.0, m_rect.bottom() - i - 1.0));
+        }
+        break;
+    }
+    case UiElement::EdgeStyle::Double: {
+        const int b = qBound(2, int(qMin(m_rect.width(), m_rect.height()) * 0.06), 8);
+        const qreal r = qMin(m_cornerRadius, qreal(6.0));
+        // Fill main inner
+        QRectF inner = m_rect.adjusted(b, b, -b, -b);
+        painter->setPen(Qt::NoPen);
+        painter->setBrush(m_currentColor);
+        painter->drawRoundedRect(inner, r, r);
+        // Outer frame
+        QColor light = m_currentColor.lighter(160);
+        QColor dark  = m_currentColor.darker(180);
+        for (int i = 0; i < b; ++i) {
+            painter->setPen(QPen(light, 1));
+            painter->drawLine(QPointF(m_rect.left() + i, m_rect.top() + i), QPointF(m_rect.right() - i - 1.0, m_rect.top() + i));
+            painter->drawLine(QPointF(m_rect.left() + i, m_rect.top() + i), QPointF(m_rect.left() + i, m_rect.bottom() - i - 1.0));
+            painter->setPen(QPen(dark, 1));
+            painter->drawLine(QPointF(m_rect.left() + i, m_rect.bottom() - i - 1.0), QPointF(m_rect.right() - i - 1.0, m_rect.bottom() - i - 1.0));
+            painter->drawLine(QPointF(m_rect.right() - i - 1.0, m_rect.top() + i), QPointF(m_rect.right() - i - 1.0, m_rect.bottom() - i - 1.0));
+        }
+        // Inner secondary frame
+        QRectF inner2 = m_rect.adjusted(b*2, b*2, -b*2, -b*2);
+        if (inner2.width() > 0 && inner2.height() > 0) {
+            QColor light2 = m_currentColor.lighter(130);
+            QColor dark2  = m_currentColor.darker(140);
+            for (int i = 0; i < b; ++i) {
+                painter->setPen(QPen(light2, 1));
+                painter->drawLine(QPointF(inner2.left() + i, inner2.top() + i), QPointF(inner2.right() - i - 1.0, inner2.top() + i));
+                painter->drawLine(QPointF(inner2.left() + i, inner2.top() + i), QPointF(inner2.left() + i, inner2.bottom() - i - 1.0));
+                painter->setPen(QPen(dark2, 1));
+                painter->drawLine(QPointF(inner2.left() + i, inner2.bottom() - i - 1.0), QPointF(inner2.right() - i - 1.0, inner2.bottom() - i - 1.0));
+                painter->drawLine(QPointF(inner2.right() - i - 1.0, inner2.top() + i), QPointF(inner2.right() - i - 1.0, inner2.bottom() - i - 1.0));
+            }
+        }
+        break;
+    }
+    case UiElement::EdgeStyle::Border: {
+        const int b = qBound(2, int(qMin(m_rect.width(), m_rect.height()) * 0.06), 8);
+        const qreal r = qMin(m_cornerRadius, qreal(6.0));
+        QRectF inner = m_rect.adjusted(b, b, -b, -b);
+        painter->setPen(Qt::NoPen);
+        painter->setBrush(m_currentColor);
+        painter->drawRoundedRect(inner, r, r);
+        QColor light = m_currentColor.lighter(160);
+        QColor dark  = m_currentColor.darker(180);
+        // outer frame
+        for (int i = 0; i < b; ++i) {
+            painter->setPen(QPen(light, 1));
+            painter->drawLine(QPointF(m_rect.left() + i, m_rect.top() + i), QPointF(m_rect.right() - i - 1.0, m_rect.top() + i));
+            painter->drawLine(QPointF(m_rect.left() + i, m_rect.top() + i), QPointF(m_rect.left() + i, m_rect.bottom() - i - 1.0));
+            painter->setPen(QPen(dark, 1));
+            painter->drawLine(QPointF(m_rect.left() + i, m_rect.bottom() - i - 1.0), QPointF(m_rect.right() - i - 1.0, m_rect.bottom() - i - 1.0));
+            painter->drawLine(QPointF(m_rect.right() - i - 1.0, m_rect.top() + i), QPointF(m_rect.right() - i - 1.0, m_rect.bottom() - i - 1.0));
+        }
+        // inner inset frame (opposite)
+        QRectF inner2 = m_rect.adjusted(b*2, b*2, -b*2, -b*2);
+        if (inner2.width() > 0 && inner2.height() > 0) {
+            QColor light2 = m_currentColor.darker(180);
+            QColor dark2  = m_currentColor.lighter(160);
+            for (int i = 0; i < b; ++i) {
+                painter->setPen(QPen(light2, 1));
+                painter->drawLine(QPointF(inner2.left() + i, inner2.top() + i), QPointF(inner2.right() - i - 1.0, inner2.top() + i));
+                painter->drawLine(QPointF(inner2.left() + i, inner2.top() + i), QPointF(inner2.left() + i, inner2.bottom() - i - 1.0));
+                painter->setPen(QPen(dark2, 1));
+                painter->drawLine(QPointF(inner2.left() + i, inner2.bottom() - i - 1.0), QPointF(inner2.right() - i - 1.0, inner2.bottom() - i - 1.0));
+                painter->drawLine(QPointF(inner2.right() - i - 1.0, inner2.top() + i), QPointF(inner2.right() - i - 1.0, inner2.bottom() - i - 1.0));
+            }
+        }
+        break;
+    }
+    
+    case UiElement::EdgeStyle::Outline:
+        painter->setBrush(Qt::NoBrush);
+        painter->setPen(QPen(m_currentColor, 3));
+        painter->drawRect(m_rect);
+        break;
+    case UiElement::EdgeStyle::Rounded:
+        painter->setBrush(m_currentColor);
+        painter->setPen(QPen(Qt::black, 3));
+        painter->drawRoundedRect(m_rect, m_cornerRadius, m_cornerRadius);
+        break;
+    case UiElement::EdgeStyle::None:
+        painter->setBrush(m_currentColor);
+        painter->setPen(Qt::NoPen);
+        painter->drawRect(m_rect);
+        break;
+    }
 
     // If an image is set and loaded, draw it centered and scaled
     if (!m_pixmap.isNull()) {

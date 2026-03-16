@@ -31,7 +31,7 @@ namespace vt {
 ///           "bgColor": "#a0a0a0",
 ///           "textColor": "#000000",
 ///           "fontSize": 32,
-///           "cornerRadius": 12
+///           "edges": ["flat"]
 ///         }
 ///       ]
 ///     }

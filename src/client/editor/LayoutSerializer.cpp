@@ -112,7 +112,47 @@ QJsonObject LayoutSerializer::serializeElement(const UiElement *elem)
     obj[QStringLiteral("fontSize")]     = elem->fontSize();
     obj[QStringLiteral("fontFamily")]   = elem->fontFamily();
     obj[QStringLiteral("fontBold")]     = elem->fontBold();
-    obj[QStringLiteral("cornerRadius")] = elem->cornerRadius();
+    // Serialize edge/style as a human-readable token inside an array.
+    QJsonArray edgesArr;
+    switch (elem->edgeStyle()) {
+    case UiElement::EdgeStyle::Flat:
+        edgesArr.append(QStringLiteral("flat"));
+        break;
+    case UiElement::EdgeStyle::Raised:
+        edgesArr.append(QStringLiteral("raised"));
+        break;
+    case UiElement::EdgeStyle::Raised2:
+        edgesArr.append(QStringLiteral("raised2"));
+        break;
+    case UiElement::EdgeStyle::Raised3:
+        edgesArr.append(QStringLiteral("raised3"));
+        break;
+    case UiElement::EdgeStyle::Inset:
+        edgesArr.append(QStringLiteral("inset"));
+        break;
+    case UiElement::EdgeStyle::Inset2:
+        edgesArr.append(QStringLiteral("inset2"));
+        break;
+    case UiElement::EdgeStyle::Inset3:
+        edgesArr.append(QStringLiteral("inset3"));
+        break;
+    case UiElement::EdgeStyle::Double:
+        edgesArr.append(QStringLiteral("double"));
+        break;
+    case UiElement::EdgeStyle::Border:
+        edgesArr.append(QStringLiteral("border"));
+        break;
+    case UiElement::EdgeStyle::Outline:
+        edgesArr.append(QStringLiteral("outline"));
+        break;
+    case UiElement::EdgeStyle::Rounded:
+        edgesArr.append(QStringLiteral("rounded"));
+        break;
+    case UiElement::EdgeStyle::None:
+        edgesArr.append(QStringLiteral("none"));
+        break;
+    }
+    obj[QStringLiteral("edges")] = edgesArr;
 
     if (elem->isInheritable())
         obj[QStringLiteral("inheritable")] = true;
@@ -234,6 +274,12 @@ bool LayoutSerializer::deserializeElement(PageWidget *page, const QJsonObject &o
     QString fontFamily = obj[QStringLiteral("fontFamily")].toString(QStringLiteral("Sans"));
     bool fontBold      = obj[QStringLiteral("fontBold")].toBool(true);
     qreal cornerRadius = obj[QStringLiteral("cornerRadius")].toDouble(12);
+    // New format uses "edges" array; fall back to legacy cornerRadius when absent.
+    QString edgeToken;
+    if (obj.contains(QStringLiteral("edges"))) {
+        QJsonArray earr = obj[QStringLiteral("edges")].toArray();
+        if (!earr.isEmpty()) edgeToken = earr.at(0).toString();
+    }
     bool inheritable   = obj[QStringLiteral("inheritable")].toBool(false);
 
     if (type == QStringLiteral("button")) {
@@ -244,7 +290,37 @@ bool LayoutSerializer::deserializeElement(PageWidget *page, const QJsonObject &o
         btn->setFontSize(fontSize);
         btn->setFontFamily(fontFamily);
         btn->setFontBold(fontBold);
-        btn->setCornerRadius(cornerRadius);
+        if (!edgeToken.isEmpty()) {
+            if (edgeToken == QLatin1String("flat"))
+                btn->setEdgeStyle(UiElement::EdgeStyle::Flat);
+            else if (edgeToken == QLatin1String("raised"))
+                btn->setEdgeStyle(UiElement::EdgeStyle::Raised);
+            else if (edgeToken == QLatin1String("raised2"))
+                btn->setEdgeStyle(UiElement::EdgeStyle::Raised2);
+            else if (edgeToken == QLatin1String("raised3"))
+                btn->setEdgeStyle(UiElement::EdgeStyle::Raised3);
+            else if (edgeToken == QLatin1String("inset"))
+                btn->setEdgeStyle(UiElement::EdgeStyle::Inset);
+            else if (edgeToken == QLatin1String("inset2"))
+                btn->setEdgeStyle(UiElement::EdgeStyle::Inset2);
+            else if (edgeToken == QLatin1String("inset3"))
+                btn->setEdgeStyle(UiElement::EdgeStyle::Inset3);
+            else if (edgeToken == QLatin1String("double"))
+                btn->setEdgeStyle(UiElement::EdgeStyle::Double);
+            else if (edgeToken == QLatin1String("border"))
+                btn->setEdgeStyle(UiElement::EdgeStyle::Border);
+            else if (edgeToken == QLatin1String("sand"))
+                btn->setEdgeStyle(UiElement::EdgeStyle::Border);
+            else if (edgeToken == QLatin1String("outline"))
+                btn->setEdgeStyle(UiElement::EdgeStyle::Outline);
+            else if (edgeToken == QLatin1String("rounded"))
+                btn->setEdgeStyle(UiElement::EdgeStyle::Rounded);
+            else
+                btn->setEdgeStyle(UiElement::EdgeStyle::Flat);
+        } else {
+            // Legacy behaviour: map cornerRadius > 0 to Rounded, else Flat
+            btn->setEdgeStyle(cornerRadius > 0 ? UiElement::EdgeStyle::Rounded : UiElement::EdgeStyle::Flat);
+        }
         btn->setInheritable(inheritable);
         if (obj.contains(QStringLiteral("activeColor")))
             btn->setActiveColor(QColor(obj[QStringLiteral("activeColor")].toString()));
@@ -278,7 +354,22 @@ bool LayoutSerializer::deserializeElement(PageWidget *page, const QJsonObject &o
         img->setFontSize(fontSize);
         img->setFontFamily(fontFamily);
         img->setFontBold(fontBold);
-        img->setCornerRadius(cornerRadius);
+        if (!edgeToken.isEmpty()) {
+            if (edgeToken == QLatin1String("flat"))
+                img->setEdgeStyle(UiElement::EdgeStyle::Flat);
+            else if (edgeToken == QLatin1String("raised"))
+                img->setEdgeStyle(UiElement::EdgeStyle::Raised);
+            else if (edgeToken == QLatin1String("inset"))
+                img->setEdgeStyle(UiElement::EdgeStyle::Inset);
+            else if (edgeToken == QLatin1String("outline"))
+                img->setEdgeStyle(UiElement::EdgeStyle::Outline);
+            else if (edgeToken == QLatin1String("rounded"))
+                img->setEdgeStyle(UiElement::EdgeStyle::Rounded);
+            else
+                img->setEdgeStyle(UiElement::EdgeStyle::Flat);
+        } else {
+            img->setEdgeStyle(cornerRadius > 0 ? UiElement::EdgeStyle::Rounded : UiElement::EdgeStyle::Flat);
+        }
         img->setInheritable(inheritable);
         if (obj.contains(QStringLiteral("activeColor")))
             img->setActiveColor(QColor(obj[QStringLiteral("activeColor")].toString()));

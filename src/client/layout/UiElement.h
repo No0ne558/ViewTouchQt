@@ -67,6 +67,26 @@ public:
 
     qreal cornerRadius() const { return m_cornerRadius; }
     void setCornerRadius(qreal r);
+    
+    // Edge/appearance style for button-like elements.
+    enum class EdgeStyle {
+        Flat = 0,
+        Raised,
+        Raised2,
+        Raised3,
+        Inset,
+        Inset2,
+        Inset3,
+        Double,
+        Border,
+        Outline,
+        Rounded,
+        None
+    };
+    Q_ENUM(EdgeStyle)
+
+    EdgeStyle edgeStyle() const { return m_edgeStyle; }
+    void setEdgeStyle(EdgeStyle s);
 
     int fontSize() const { return m_fontSize; }
     void setFontSize(int size);
@@ -108,6 +128,7 @@ protected:
     QString m_fontFamily   = QStringLiteral("Sans");
     bool    m_fontBold     = true;
     bool    m_inheritable  = false;
+    EdgeStyle m_edgeStyle = EdgeStyle::Flat;
 
 public:
     // Button interaction behaviour. Stored on the element so it can be
