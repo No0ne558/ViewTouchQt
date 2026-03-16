@@ -65,6 +65,7 @@ private:
     QSpinBox  *m_wBox         = nullptr;
     QSpinBox  *m_hBox         = nullptr;
     QComboBox *m_edgeStyleCombo = nullptr;
+    QComboBox *m_shadowCombo = nullptr;
 
     QPushButton *m_bgColorBtn   = nullptr;
     QPushButton *m_textColorBtn = nullptr;

@@ -68,6 +68,15 @@ public:
     qreal cornerRadius() const { return m_cornerRadius; }
     void setCornerRadius(qreal r);
     
+    // Shadow intensity for element edges.
+    enum class ShadowIntensity {
+        Min = 0,
+        Med,
+        Max,
+        None
+    };
+    Q_ENUM(ShadowIntensity)
+
     // Edge/appearance style for button-like elements.
     enum class EdgeStyle {
         Flat = 0,
@@ -87,6 +96,8 @@ public:
 
     EdgeStyle edgeStyle() const { return m_edgeStyle; }
     void setEdgeStyle(EdgeStyle s);
+    ShadowIntensity shadowIntensity() const { return m_shadowIntensity; }
+    void setShadowIntensity(ShadowIntensity s);
 
     int fontSize() const { return m_fontSize; }
     void setFontSize(int size);
@@ -124,6 +135,7 @@ protected:
     QColor  m_bgColor      = QColor(160, 160, 160);
     QColor  m_textColor    = Qt::black;
     qreal   m_cornerRadius = 12.0;
+    ShadowIntensity m_shadowIntensity = ShadowIntensity::Med;
     int     m_fontSize     = 24;
     QString m_fontFamily   = QStringLiteral("Sans");
     bool    m_fontBold     = true;

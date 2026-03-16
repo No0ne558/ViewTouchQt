@@ -180,6 +180,15 @@ void PropertyDialog::setupUi()
     if (esIdx >= 0) m_edgeStyleCombo->setCurrentIndex(esIdx);
     styleForm->addRow(QStringLiteral("Edge style:"), m_edgeStyleCombo);
 
+    m_shadowCombo = new QComboBox;
+    m_shadowCombo->addItem(QStringLiteral("None"), static_cast<int>(UiElement::ShadowIntensity::None));
+    m_shadowCombo->addItem(QStringLiteral("Min"), static_cast<int>(UiElement::ShadowIntensity::Min));
+    m_shadowCombo->addItem(QStringLiteral("Med"), static_cast<int>(UiElement::ShadowIntensity::Med));
+    m_shadowCombo->addItem(QStringLiteral("Max"), static_cast<int>(UiElement::ShadowIntensity::Max));
+    int shIdx = m_shadowCombo->findData(static_cast<int>(m_element->shadowIntensity()));
+    if (shIdx >= 0) m_shadowCombo->setCurrentIndex(shIdx);
+    styleForm->addRow(QStringLiteral("Shadow intensity:"), m_shadowCombo);
+
     // Behaviour selector (Button only)
     m_behaviorCombo = new QComboBox;
     m_behaviorCombo->addItem(QStringLiteral("Blink"), static_cast<int>(UiElement::ButtonBehavior::Blink));
@@ -342,6 +351,8 @@ void PropertyDialog::applyChanges()
     m_element->setTextColor(m_textColor);
     if (m_edgeStyleCombo)
         m_element->setEdgeStyle(static_cast<UiElement::EdgeStyle>(m_edgeStyleCombo->currentData().toInt()));
+    if (m_shadowCombo)
+        m_element->setShadowIntensity(static_cast<UiElement::ShadowIntensity>(m_shadowCombo->currentData().toInt()));
     m_element->setInheritable(m_inheritableChk->isChecked());
     if (m_behaviorCombo)
         m_element->setBehavior(static_cast<UiElement::ButtonBehavior>(m_behaviorCombo->currentData().toInt()));

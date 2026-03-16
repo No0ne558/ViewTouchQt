@@ -154,6 +154,22 @@ QJsonObject LayoutSerializer::serializeElement(const UiElement *elem)
     }
     obj[QStringLiteral("edges")] = edgesArr;
 
+    // Shadow intensity: min/med/max
+    switch (elem->shadowIntensity()) {
+    case UiElement::ShadowIntensity::Min:
+        obj[QStringLiteral("shadowIntensity")] = QStringLiteral("min");
+        break;
+    case UiElement::ShadowIntensity::Med:
+        obj[QStringLiteral("shadowIntensity")] = QStringLiteral("med");
+        break;
+    case UiElement::ShadowIntensity::Max:
+        obj[QStringLiteral("shadowIntensity")] = QStringLiteral("max");
+        break;
+    case UiElement::ShadowIntensity::None:
+        obj[QStringLiteral("shadowIntensity")] = QStringLiteral("none");
+        break;
+    }
+
     if (elem->isInheritable())
         obj[QStringLiteral("inheritable")] = true;
 
@@ -276,10 +292,13 @@ bool LayoutSerializer::deserializeElement(PageWidget *page, const QJsonObject &o
     qreal cornerRadius = obj[QStringLiteral("cornerRadius")].toDouble(12);
     // New format uses "edges" array; fall back to legacy cornerRadius when absent.
     QString edgeToken;
+    QString shadowToken;
     if (obj.contains(QStringLiteral("edges"))) {
         QJsonArray earr = obj[QStringLiteral("edges")].toArray();
         if (!earr.isEmpty()) edgeToken = earr.at(0).toString();
     }
+    if (obj.contains(QStringLiteral("shadowIntensity")))
+        shadowToken = obj[QStringLiteral("shadowIntensity")].toString();
     bool inheritable   = obj[QStringLiteral("inheritable")].toBool(false);
 
     if (type == QStringLiteral("button")) {
@@ -309,14 +328,28 @@ bool LayoutSerializer::deserializeElement(PageWidget *page, const QJsonObject &o
                 btn->setEdgeStyle(UiElement::EdgeStyle::Double);
             else if (edgeToken == QLatin1String("border"))
                 btn->setEdgeStyle(UiElement::EdgeStyle::Border);
-            else if (edgeToken == QLatin1String("sand"))
-                btn->setEdgeStyle(UiElement::EdgeStyle::Border);
             else if (edgeToken == QLatin1String("outline"))
                 btn->setEdgeStyle(UiElement::EdgeStyle::Outline);
             else if (edgeToken == QLatin1String("rounded"))
                 btn->setEdgeStyle(UiElement::EdgeStyle::Rounded);
             else
                 btn->setEdgeStyle(UiElement::EdgeStyle::Flat);
+
+            // Shadow intensity (optional)
+            if (!shadowToken.isEmpty()) {
+                if (shadowToken == QLatin1String("none"))
+                    btn->setShadowIntensity(UiElement::ShadowIntensity::None);
+                else if (shadowToken == QLatin1String("min"))
+                    btn->setShadowIntensity(UiElement::ShadowIntensity::Min);
+                else if (shadowToken == QLatin1String("med"))
+                    btn->setShadowIntensity(UiElement::ShadowIntensity::Med);
+                else if (shadowToken == QLatin1String("max"))
+                    btn->setShadowIntensity(UiElement::ShadowIntensity::Max);
+                else
+                    btn->setShadowIntensity(UiElement::ShadowIntensity::Med);
+            } else {
+                btn->setShadowIntensity(UiElement::ShadowIntensity::Med);
+            }
         } else {
             // Legacy behaviour: map cornerRadius > 0 to Rounded, else Flat
             btn->setEdgeStyle(cornerRadius > 0 ? UiElement::EdgeStyle::Rounded : UiElement::EdgeStyle::Flat);
@@ -367,6 +400,21 @@ bool LayoutSerializer::deserializeElement(PageWidget *page, const QJsonObject &o
                 img->setEdgeStyle(UiElement::EdgeStyle::Rounded);
             else
                 img->setEdgeStyle(UiElement::EdgeStyle::Flat);
+
+            if (!shadowToken.isEmpty()) {
+                if (shadowToken == QLatin1String("none"))
+                    img->setShadowIntensity(UiElement::ShadowIntensity::None);
+                else if (shadowToken == QLatin1String("min"))
+                    img->setShadowIntensity(UiElement::ShadowIntensity::Min);
+                else if (shadowToken == QLatin1String("med"))
+                    img->setShadowIntensity(UiElement::ShadowIntensity::Med);
+                else if (shadowToken == QLatin1String("max"))
+                    img->setShadowIntensity(UiElement::ShadowIntensity::Max);
+                else
+                    img->setShadowIntensity(UiElement::ShadowIntensity::Med);
+            } else {
+                img->setShadowIntensity(UiElement::ShadowIntensity::Med);
+            }
         } else {
             img->setEdgeStyle(cornerRadius > 0 ? UiElement::EdgeStyle::Rounded : UiElement::EdgeStyle::Flat);
         }
