@@ -9,6 +9,12 @@
 #include <QDialogButtonBox>
 #include <QGroupBox>
 #include <QVBoxLayout>
+// Image support
+#include <QFileDialog>
+#include <QPixmap>
+#include <QFileInfo>
+#include <QDir>
+#include "../layout/ButtonElement.h"
 
 namespace vt {
 
@@ -44,10 +50,11 @@ void PropertyDialog::setupUi()
     idForm->addRow(QStringLiteral("ID:"), m_idEdit);
 
     m_typeCombo = new QComboBox;
-    // Only allow Button type in the simplified editor.
+    // Allow Button and Image types in the editor.
     m_typeCombo->addItem(QStringLiteral("Button"), static_cast<int>(ElementType::Button));
-    // Ensure combo index is valid (default to Button)
-    int idx = m_typeCombo->findData(static_cast<int>(ElementType::Button));
+    m_typeCombo->addItem(QStringLiteral("Image"), static_cast<int>(ElementType::Image));
+    // Ensure combo index reflects the element's current type
+    int idx = m_typeCombo->findData(static_cast<int>(m_element->elementType()));
     m_typeCombo->setCurrentIndex(idx >= 0 ? idx : 0);
     connect(m_typeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &PropertyDialog::onTypeChanged);
@@ -61,8 +68,8 @@ void PropertyDialog::setupUi()
     mainLayout->addWidget(idGroup);
 
     // ── Text group ──────────────────────────────────────────────────────
-    auto *textGroup = new QGroupBox(QStringLiteral("Text"));
-    auto *textForm  = new QFormLayout(textGroup);
+    m_textGroup = new QGroupBox(QStringLiteral("Text"));
+    auto *textForm  = new QFormLayout(m_textGroup);
 
     m_labelEdit = new QLineEdit(m_element->label());
     textForm->addRow(QStringLiteral("Label:"), m_labelEdit);
@@ -89,7 +96,7 @@ void PropertyDialog::setupUi()
     m_fontBoldChk->setChecked(m_element->fontBold());
     textForm->addRow(m_fontBoldChk);
 
-    mainLayout->addWidget(textGroup);
+    mainLayout->addWidget(m_textGroup);
 
     // ── Position / size group ───────────────────────────────────────────
     auto *geomGroup = new QGroupBox(QStringLiteral("Geometry"));
@@ -179,14 +186,89 @@ void PropertyDialog::setupUi()
     m_layerBox->setValue(m_element->layer());
     styleForm->addRow(QStringLiteral("Layer (-10..10):"), m_layerBox);
 
+    // Image property (optional)
+    m_imageCombo = new QComboBox;
+    m_imagePreview = new QLabel;
+    m_imagePreview->setFixedSize(48, 48);
+    m_imagePreview->setFrameStyle(QFrame::Box | QFrame::Plain);
+    m_imagePreview->setAlignment(Qt::AlignCenter);
+
+    auto *imgRow = new QHBoxLayout;
+    imgRow->addWidget(m_imageCombo);
+    imgRow->addWidget(m_imagePreview);
+    styleForm->addRow(QStringLiteral("Image:"), imgRow);
+
+    // Image button toggle: when checked, the element is an Image Button (no text)
+    m_imageOnlyChk = new QCheckBox(QStringLiteral("Image Button (no text)"));
+    bool isImageOnly = false;
+    if (auto *btn = qobject_cast<ButtonElement *>(m_element))
+        isImageOnly = btn->imageOnly();
+    m_imageOnlyChk->setChecked(isImageOnly);
+    styleForm->addRow(m_imageOnlyChk);
+
+    // Populate the image combo from the system image directory
+    QByteArray env = qgetenv("VIEWTOUCH_IMG_DIR");
+    QString sysDir = env.isEmpty() ? QStringLiteral("/opt/viewtouch/img") : QString::fromUtf8(env);
+    QDir dir(sysDir);
+    QStringList filters;
+    filters << "*.png" << "*.jpg" << "*.jpeg" << "*.bmp" << "*.svg";
+    // Add a None option first
+    m_imageCombo->addItem(QStringLiteral("None"), QString());
+    if (dir.exists()) {
+        const QStringList entries = dir.entryList(filters, QDir::Files, QDir::Name);
+        for (const QString &fn : entries) {
+            m_imageCombo->addItem(fn, dir.filePath(fn));
+        }
+    }
+
+    // Populate initial selection if element has an image set and exists in the dir
+    if (auto *btn = qobject_cast<ButtonElement *>(m_element)) {
+        QString cur = btn->imagePath();
+        if (!cur.isEmpty()) {
+            QString name = QFileInfo(cur).fileName();
+            int idx = m_imageCombo->findText(name);
+            if (idx >= 0) {
+                m_imageCombo->setCurrentIndex(idx);
+                QString full = m_imageCombo->itemData(idx).toString();
+                QPixmap p(full);
+                if (!p.isNull())
+                    m_imagePreview->setPixmap(p.scaled(m_imagePreview->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
+            } else {
+                // Try to match full path in data
+                int didx = m_imageCombo->findData(cur);
+                if (didx >= 0) {
+                    m_imageCombo->setCurrentIndex(didx);
+                    QString full = m_imageCombo->itemData(didx).toString();
+                    QPixmap p(full);
+                    if (!p.isNull())
+                        m_imagePreview->setPixmap(p.scaled(m_imagePreview->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
+                }
+            }
+        } else {
+            // No image -> select None
+            m_imageCombo->setCurrentIndex(0);
+        }
+    }
+
+    connect(m_imageCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int idx) {
+        if (idx < 0) { m_imagePreview->clear(); return; }
+        QString full = m_imageCombo->itemData(idx).toString();
+        if (full.isEmpty()) {
+            m_imagePreview->clear();
+            return;
+        }
+        QPixmap p(full);
+        if (!p.isNull())
+            m_imagePreview->setPixmap(p.scaled(m_imagePreview->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
+        else
+            m_imagePreview->clear();
+    });
+
     mainLayout->addWidget(styleGroup);
 
     // ── Type-specific groups (always created, shown/hidden by type) ─────
-
-    // Type-specific groups removed — editor only supports Button elements.
-
-    // Only Button type supported; nothing to toggle.
-    adjustSize();
+    // Ensure UI reflects current type selection (hides/shows text group)
+    onTypeChanged(m_typeCombo->currentIndex());
 
     // ── Buttons ─────────────────────────────────────────────────────────
     auto *buttons = new QDialogButtonBox(
@@ -194,6 +276,19 @@ void PropertyDialog::setupUi()
     connect(buttons, &QDialogButtonBox::accepted, this, &PropertyDialog::applyChanges);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
     mainLayout->addWidget(buttons);
+}
+
+QString PropertyDialog::imagePathValue() const
+{
+    if (!m_imageCombo) return QString();
+    int idx = m_imageCombo->currentIndex();
+    if (idx < 0) return QString();
+    return m_imageCombo->itemData(idx).toString();
+}
+
+bool PropertyDialog::imageOnlyValue() const
+{
+    return m_imageOnlyChk ? m_imageOnlyChk->isChecked() : false;
 }
 
 void PropertyDialog::chooseColor(QPushButton *btn, QColor &target)
@@ -244,7 +339,13 @@ void PropertyDialog::applyChanges()
 
     // ── Type-specific properties (only apply if type NOT changing) ───────
     if (!typeChanged()) {
-        // No additional type-specific properties to apply (only Button supported).
+        // Apply Button-specific properties: image path and image-only mode
+        if (auto *btn = qobject_cast<ButtonElement *>(m_element)) {
+            if (m_imageCombo && m_imageCombo->currentIndex() >= 0)
+                btn->setImagePath(m_imageCombo->itemData(m_imageCombo->currentIndex()).toString());
+            if (m_imageOnlyChk)
+                btn->setImageOnly(m_imageOnlyChk->isChecked());
+        }
     }
 
     accept();
@@ -252,8 +353,18 @@ void PropertyDialog::applyChanges()
 
 void PropertyDialog::onTypeChanged(int index)
 {
-    Q_UNUSED(index);
-    // No-op: only Button type is supported in this simplified editor.
+    ElementType t = static_cast<ElementType>(m_typeCombo->itemData(index).toInt());
+    // Hide the full Text group (label + font controls) when Image type is selected.
+    if (t == ElementType::Image) {
+        if (m_textGroup) m_textGroup->setVisible(false);
+        if (m_imageOnlyChk) {
+            m_imageOnlyChk->setChecked(true);
+            m_imageOnlyChk->setEnabled(false);
+        }
+    } else {
+        if (m_textGroup) m_textGroup->setVisible(true);
+        if (m_imageOnlyChk) m_imageOnlyChk->setEnabled(true);
+    }
     adjustSize();
 }
 

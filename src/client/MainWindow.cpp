@@ -261,7 +261,12 @@ void MainWindow::openPropertyDialog(UiElement *elem)
                     target = replacement;
 
                     // Apply type-specific properties from the dialog
-                            // Only Button-specific properties remain.
+                    if (dlg.newType() == ElementType::Image) {
+                        if (auto *btn = qobject_cast<ButtonElement *>(target)) {
+                            btn->setImagePath(dlg.imagePathValue());
+                            btn->setImageOnly(dlg.imageOnlyValue());
+                        }
+                    }
                 }
             }
         }

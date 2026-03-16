@@ -15,6 +15,7 @@ namespace vt {
 /// Element types for identification and serialization.
 enum class ElementType {
     Button,
+    Image,
 };
 
 /// Base class for every visual element placed on a PageWidget.

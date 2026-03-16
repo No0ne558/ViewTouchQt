@@ -4,6 +4,7 @@
 #include "PageWidget.h"
 
 #include <QDebug>
+#include "ButtonElement.h"
 
 namespace vt {
 
@@ -31,6 +32,26 @@ ButtonElement *PageWidget::addButton(const QString &id, qreal x, qreal y,
 
     auto *btn = new ButtonElement(id, x, y, w, h);
     btn->setLabel(label);
+    registerElement(btn);
+
+    connect(btn, &ButtonElement::clicked, this, &PageWidget::buttonClicked);
+
+    return btn;
+}
+
+ButtonElement *PageWidget::addImageButton(const QString &id, qreal x, qreal y,
+                                           qreal w, qreal h, const QString &imagePath)
+{
+    if (m_elements.contains(id)) {
+        qWarning() << "[layout] Duplicate element id:" << id << "on page" << m_name;
+        return nullptr;
+    }
+
+    auto *btn = new ButtonElement(id, x, y, w, h, ElementType::Image);
+    btn->setLabel(QString());
+    if (!imagePath.isEmpty())
+        btn->setImagePath(imagePath);
+    btn->setImageOnly(true);
     registerElement(btn);
 
     connect(btn, &ButtonElement::clicked, this, &PageWidget::buttonClicked);
@@ -79,6 +100,12 @@ UiElement *PageWidget::replaceElementType(const QString &id, ElementType newType
     const qreal  w      = old->elementW();
     const qreal  h      = old->elementH();
     const QString label  = old->label();
+    QString imagePath;
+    bool imageOnly = false;
+    if (old->elementType() == ElementType::Button) {
+        imagePath = static_cast<ButtonElement *>(old)->imagePath();
+        imageOnly = static_cast<ButtonElement *>(old)->imageOnly();
+    }
     const QColor  bg     = old->bgColor();
     const QColor  text   = old->textColor();
     const int     fsize  = old->fontSize();
@@ -95,6 +122,9 @@ UiElement *PageWidget::replaceElementType(const QString &id, ElementType newType
     if (newType == ElementType::Button) {
         auto *btn = addButton(id, x, y, w, h, label);
         created = btn;
+    } else if (newType == ElementType::Image) {
+        auto *img = addImageButton(id, x, y, w, h, QString());
+        created = img;
     }
 
     if (created) {
@@ -102,6 +132,11 @@ UiElement *PageWidget::replaceElementType(const QString &id, ElementType newType
         created->setTextColor(text);
         created->setFontSize(fsize);
         created->setCornerRadius(radius);
+        if (created->elementType() == ElementType::Button) {
+            auto *cb = static_cast<ButtonElement *>(created);
+            if (!imagePath.isEmpty()) cb->setImagePath(imagePath);
+            if (imageOnly) cb->setImageOnly(true);
+        }
     }
 
     return created;

@@ -55,6 +55,12 @@ add_subdirectory(src/host)
 # Install default layout data into the install prefix under `dat/`.
 install(FILES ${CMAKE_SOURCE_DIR}/data/default_layout.json DESTINATION dat RENAME layout.json)
 
+# Install bundled images into the system image directory under the install prefix
+# Contents of repo `img/` will be installed to ${CMAKE_INSTALL_PREFIX}/img
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/img/ DESTINATION img
+    FILE_PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ
+    DIRECTORY_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
+
 # ----- CPack (deb / rpm) -----------------------------------------------------
 set(CPACK_PACKAGE_VENDOR "OrderPi LLC")
 set(CPACK_PACKAGE_CONTACT "arielbrambila117@gmail.com")

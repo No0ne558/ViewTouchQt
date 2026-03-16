@@ -6,6 +6,8 @@
 
 #include "UiElement.h"
 #include <QTimer>
+#include <QPixmap>
+#include <QString>
 
 namespace vt {
 
@@ -14,6 +16,7 @@ class ButtonElement : public UiElement {
 public:
     explicit ButtonElement(const QString &id,
                            qreal x, qreal y, qreal w, qreal h,
+                           ElementType type = ElementType::Button,
                            QGraphicsItem *parent = nullptr);
 
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
@@ -53,6 +56,20 @@ private:
 
 private slots:
     void onDoubleTapTimeout();
+
+private:
+    // Image support: path and cached pixmaps
+    QString m_imagePath;
+    QPixmap m_pixmap;
+    QPixmap m_scaledPixmap;
+    QSize   m_lastScaledSize;
+    bool    m_imageOnly = false;
+
+public:
+    void setImagePath(const QString &path);
+    const QString &imagePath() const { return m_imagePath; }
+    void setImageOnly(bool on) { m_imageOnly = on; update(); }
+    bool imageOnly() const { return m_imageOnly; }
 };
 
 } // namespace vt

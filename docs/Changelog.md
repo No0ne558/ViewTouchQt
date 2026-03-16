@@ -163,6 +163,12 @@ All notable changes to this project will be documented in this file.
   - 7 new `ActionType` values: ShowDisplays, AddDisplay, EditDisplay, RemoveDisplay, ToggleDisplay, TestPrinter, DisplayDone
   - PropertyDialog updated with all new action types; fixed combo index mapping via `findData()`
   - Refactored `wirePageKeypad()` to support multiple PinEntry fields per page using Qt focus system
+   - Editor: Image button type (2026-03-15)
+     - Added `Image` element type selectable in the Properties dialog that displays a scaled image on a button and supports an `imageOnly` option to hide the label.
+     - `PropertyDialog` now lists preinstalled images from `/opt/viewtouch/img` (or overridden via `VIEWTOUCH_IMG_DIR`) in a dropdown-only selector with preview.
+     - `ButtonElement` caches and scales images to the element size; when not `imageOnly`, label text is rendered on top of the image for readability.
+     - `LayoutSerializer` persists `imagePath` and `imageOnly` to layout JSON.
+     - CMake: install `img/` repository directory to `${CMAKE_INSTALL_PREFIX}/img` so preinstalled images are available (defaults to `/opt/viewtouch/img`).
 
   ### 2026-03-11 — Button-only cleanup
 

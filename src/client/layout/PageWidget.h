@@ -40,6 +40,9 @@ public:
     /// Create and add a button.  Returns a non-owning pointer.
     ButtonElement *addButton(const QString &id, qreal x, qreal y,
                              qreal w, qreal h, const QString &label);
+    /// Create and add an Image button (image-only). Returns non-owning pointer.
+    ButtonElement *addImageButton(const QString &id, qreal x, qreal y,
+                                  qreal w, qreal h, const QString &imagePath = QString());
 
     /// Create and add a label.
     // Labels, panels and other element types were removed; only buttons remain.

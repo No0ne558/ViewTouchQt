@@ -8,6 +8,8 @@
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonArray>
+#include <QFileInfo>
+#include <QDir>
 
 namespace vt {
 
@@ -96,6 +98,8 @@ QJsonObject LayoutSerializer::serializeElement(const UiElement *elem)
     obj[QStringLiteral("id")] = elem->elementId();
     if (elem->elementType() == ElementType::Button)
         obj[QStringLiteral("type")] = QStringLiteral("button");
+    else if (elem->elementType() == ElementType::Image)
+        obj[QStringLiteral("type")] = QStringLiteral("image");
 
 
     obj[QStringLiteral("x")] = elem->pos().x();
@@ -116,6 +120,21 @@ QJsonObject LayoutSerializer::serializeElement(const UiElement *elem)
     // Type-specific properties: only Button supported now.
     if (elem->elementType() == ElementType::Button) {
         auto *btn = static_cast<const ButtonElement *>(elem);
+        if (!btn->imagePath().isEmpty()) {
+            QString img = btn->imagePath();
+            // If the image is under the system image directory, store only the filename
+            QFileInfo fi(img);
+            if (fi.isAbsolute()) {
+                QByteArray env = qgetenv("VIEWTOUCH_IMG_DIR");
+                QString sysDir = env.isEmpty() ? QStringLiteral("/opt/viewtouch/img") : QString::fromUtf8(env);
+                QDir sys(sysDir);
+                QString sysPath = QDir(sys.absolutePath()).absolutePath();
+                if (img == sysPath || img.startsWith(sysPath + QDir::separator()))
+                    img = fi.fileName();
+            }
+            obj[QStringLiteral("imagePath")] = img;
+        }
+        obj[QStringLiteral("imageOnly")] = btn->imageOnly();
         obj[QStringLiteral("activeColor")] = btn->activeColor().name(QColor::HexArgb);
         // Serialize behaviour as a string for readability
         switch (elem->behavior()) {
@@ -246,6 +265,44 @@ bool LayoutSerializer::deserializeElement(PageWidget *page, const QJsonObject &o
         }
         // Ensure runtime mouse acceptance matches behaviour when loaded
         btn->setAcceptedMouseButtons(btn->behavior() == UiElement::ButtonBehavior::PassThrough ? Qt::NoButton : Qt::LeftButton);
+        if (obj.contains(QStringLiteral("imagePath")))
+            btn->setImagePath(obj[QStringLiteral("imagePath")].toString());
+        if (obj.contains(QStringLiteral("imageOnly")))
+            btn->setImageOnly(obj[QStringLiteral("imageOnly")].toBool(false));
+    } else if (type == QStringLiteral("image")) {
+        // Image button: create image-typed element
+        auto *img = page->addImageButton(id, x, y, w, h, QString());
+        if (!img) return false;
+        img->setBgColor(bgColor);
+        img->setTextColor(textColor);
+        img->setFontSize(fontSize);
+        img->setFontFamily(fontFamily);
+        img->setFontBold(fontBold);
+        img->setCornerRadius(cornerRadius);
+        img->setInheritable(inheritable);
+        if (obj.contains(QStringLiteral("activeColor")))
+            img->setActiveColor(QColor(obj[QStringLiteral("activeColor")].toString()));
+        if (obj.contains(QStringLiteral("layer")))
+            img->setLayer(obj[QStringLiteral("layer")].toInt(0));
+        if (obj.contains(QStringLiteral("behavior"))) {
+            QString s = obj[QStringLiteral("behavior")].toString();
+            if (s == QLatin1String("blink"))
+                img->setBehavior(UiElement::ButtonBehavior::Blink);
+            else if (s == QLatin1String("toggle"))
+                img->setBehavior(UiElement::ButtonBehavior::Toggle);
+            else if (s == QLatin1String("none"))
+                img->setBehavior(UiElement::ButtonBehavior::None);
+            else if (s == QLatin1String("passthrough"))
+                img->setBehavior(UiElement::ButtonBehavior::PassThrough);
+            else if (s == QLatin1String("doubletap"))
+                img->setBehavior(UiElement::ButtonBehavior::DoubleTap);
+        }
+        // Ensure runtime mouse acceptance matches behaviour when loaded
+        img->setAcceptedMouseButtons(img->behavior() == UiElement::ButtonBehavior::PassThrough ? Qt::NoButton : Qt::LeftButton);
+        if (obj.contains(QStringLiteral("imagePath")))
+            img->setImagePath(obj[QStringLiteral("imagePath")].toString());
+        if (obj.contains(QStringLiteral("imageOnly")))
+            img->setImageOnly(obj[QStringLiteral("imageOnly")].toBool(false));
     } else {
         // Skip any non-button element types. This intentionally drops
         // elements like labels, panels, pin entries, keypads, actions, etc.

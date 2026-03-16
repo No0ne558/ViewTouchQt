@@ -14,6 +14,7 @@
 #include <QComboBox>
 #include <QPushButton>
 #include <QColor>
+#include <QLabel>
 
 namespace vt {
 
@@ -31,6 +32,10 @@ public:
 
     /// The element type selected by the user (may differ from original).
     ElementType newType() const { return m_newType; }
+
+    /// Image-specific getters
+    QString imagePathValue() const;
+    bool imageOnlyValue() const;
 
     // ── Type-specific property getters (only Button supported now)
     int     actionTypeValue() const;
@@ -51,6 +56,7 @@ private:
 
     QLineEdit *m_idEdit       = nullptr;
     QLineEdit *m_labelEdit    = nullptr;
+    QGroupBox *m_textGroup    = nullptr;
     QSpinBox  *m_fontSizeBox  = nullptr;
     QComboBox *m_fontFamilyCombo = nullptr;
     QCheckBox *m_fontBoldChk  = nullptr;
@@ -72,6 +78,11 @@ private:
 
     // Type-specific widgets (no longer used in simplified editor)
     // (action-type UI removed)
+
+    // Image property
+    QComboBox *m_imageCombo = nullptr;
+    QLabel *m_imagePreview = nullptr;
+    QCheckBox *m_imageOnlyChk = nullptr;
 
     // Common flag
     QCheckBox *m_inheritableChk  = nullptr;
