@@ -15,6 +15,7 @@
 #include <QFileInfo>
 #include <QDir>
 #include "../layout/ButtonElement.h"
+#include "../layout/KeyboardButton.h"
 
 namespace vt {
 
@@ -53,6 +54,8 @@ void PropertyDialog::setupUi()
     // Allow Button and Image types in the editor.
     m_typeCombo->addItem(QStringLiteral("Button"), static_cast<int>(ElementType::Button));
     m_typeCombo->addItem(QStringLiteral("Image"), static_cast<int>(ElementType::Image));
+    m_typeCombo->addItem(QStringLiteral("Login Entry"), static_cast<int>(ElementType::LoginEntry));
+    m_typeCombo->addItem(QStringLiteral("Keyboard Button"), static_cast<int>(ElementType::KeyboardButton));
     // Ensure combo index reflects the element's current type
     int idx = m_typeCombo->findData(static_cast<int>(m_element->elementType()));
     m_typeCombo->setCurrentIndex(idx >= 0 ? idx : 0);
@@ -227,6 +230,14 @@ void PropertyDialog::setupUi()
     m_imageOnlyChk->setChecked(isImageOnly);
     styleForm->addRow(m_imageOnlyChk);
 
+    // Assigned key for keyboard buttons
+    m_assignedKeyEdit = new QLineEdit;
+    QString assignedInit;
+    if (auto *kb = qobject_cast<KeyboardButton *>(m_element))
+        assignedInit = kb->assignedKey();
+    m_assignedKeyEdit->setText(assignedInit);
+    styleForm->addRow(QStringLiteral("Assigned key:"), m_assignedKeyEdit);
+
     // Populate the image combo from the system image directory
     QByteArray env = qgetenv("VIEWTOUCH_IMG_DIR");
     QString sysDir = env.isEmpty() ? QStringLiteral("/opt/viewtouch/img") : QString::fromUtf8(env);
@@ -307,6 +318,12 @@ QString PropertyDialog::imagePathValue() const
     return m_imageCombo->itemData(idx).toString();
 }
 
+QString PropertyDialog::assignedKeyValue() const
+{
+    if (!m_assignedKeyEdit) return QString();
+    return m_assignedKeyEdit->text();
+}
+
 bool PropertyDialog::imageOnlyValue() const
 {
     return m_imageOnlyChk ? m_imageOnlyChk->isChecked() : false;
@@ -370,6 +387,15 @@ void PropertyDialog::applyChanges()
             if (m_imageOnlyChk)
                 btn->setImageOnly(m_imageOnlyChk->isChecked());
         }
+
+        // Apply KeyboardButton-specific properties (KeyboardButton inherits from ButtonElement)
+        if (auto *kb = qobject_cast<KeyboardButton *>(m_element)) {
+            if (m_assignedKeyEdit) {
+                qDebug() << "[PropertyDialog] Applying assignedKey to" << m_element->elementId()
+                         << ":" << m_assignedKeyEdit->text();
+                kb->setAssignedKey(m_assignedKeyEdit->text());
+            }
+        }
     }
 
     accept();
@@ -385,9 +411,14 @@ void PropertyDialog::onTypeChanged(int index)
             m_imageOnlyChk->setChecked(true);
             m_imageOnlyChk->setEnabled(false);
         }
+        if (m_assignedKeyEdit) m_assignedKeyEdit->setVisible(false);
     } else {
         if (m_textGroup) m_textGroup->setVisible(true);
         if (m_imageOnlyChk) m_imageOnlyChk->setEnabled(true);
+        // Show assigned key only for keyboard button type
+        if (m_assignedKeyEdit) {
+            m_assignedKeyEdit->setVisible(t == ElementType::KeyboardButton);
+        }
     }
     adjustSize();
 }

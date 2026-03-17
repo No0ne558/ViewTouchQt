@@ -31,6 +31,12 @@ PageWidget *LayoutEngine::createPage(const QString &name)
                 emit buttonClicked(name, elementId);
             });
 
+    // Forward login field submissions with page name attached.
+    connect(pg, &PageWidget::loginFieldSubmitted, this,
+            [this, name](const QString &elementId, const QString &value) {
+                emit loginFieldSubmitted(name, elementId, value);
+            });
+
 
     return pg;
 }

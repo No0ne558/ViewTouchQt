@@ -4,6 +4,7 @@
 #include "EditorOverlay.h"
 #include "../layout/ButtonElement.h"
 #include "../layout/PageWidget.h"
+#include "../layout/KeyboardButton.h"
 #include "GhostItem.h"
 
 #include <QApplication>
@@ -155,61 +156,32 @@ EditorOverlay::EditorOverlay(LayoutEngine *engine, QGraphicsScene *scene,
     , m_engine(engine)
     , m_scene(scene)
 {
-    m_pageTabBar = new PageTabBar(engine, scene, this);
-
-    // When user clicks a tab, deselect (elements may belong to old page)
-    connect(m_pageTabBar, &PageTabBar::pageSelected, this, [this]() {
-        deselectAll();
-    });
-
-    // Forward "Manage Pages..." click to the main window
-    connect(m_pageTabBar, &PageTabBar::manageRequested, this, [this]() {
-        emit pageManagerRequested();
-    });
+    // Nothing to do here; members initialized in header defaults.
 }
 
 EditorOverlay::~EditorOverlay()
 {
-    hideHandles();
-    hideToolbar();
-    m_pageTabBar->setVisible(false);
+    if (m_editMode)
+        setEditMode(false);
+    if (m_dragGhost) {
+        m_scene->removeItem(m_dragGhost);
+        delete m_dragGhost;
+        m_dragGhost = nullptr;
+    }
 }
-
-// ── Edit mode ───────────────────────────────────────────────────────────────
 
 void EditorOverlay::setEditMode(bool on)
 {
     if (m_editMode == on)
         return;
-
     m_editMode = on;
-
     if (on) {
         installEventFilter();
         showToolbar();
-        qDebug() << "[editor] Edit mode ON";
     } else {
-        deselectAll();
         removeEventFilter();
         hideToolbar();
-        m_pageTabBar->setVisible(false);   // hide panel when leaving edit mode
-        qDebug() << "[editor] Edit mode OFF";
     }
-
-    // Update elements' mouse acceptance according to edit mode and
-    // their behaviour so PassThrough works at runtime.
-    for (const QString &pageName : m_engine->pageNames()) {
-        PageWidget *pg = m_engine->page(pageName);
-        if (!pg) continue;
-        for (UiElement *elem : pg->elements()) {
-            if (on) {
-                elem->setAcceptedMouseButtons(Qt::LeftButton);
-            } else {
-                elem->setAcceptedMouseButtons(elem->behavior() == UiElement::ButtonBehavior::PassThrough ? Qt::NoButton : Qt::LeftButton);
-            }
-        }
-    }
-
     emit editModeChanged(on);
 }
 
@@ -481,6 +453,87 @@ bool EditorOverlay::eventFilter(QObject *watched, QEvent *event)
     // Arrow keys move all selected elements (Shift = 1px fine move)
     if (event->type() == QEvent::KeyPress && !m_selection.isEmpty()) {
         auto *ke = static_cast<QKeyEvent *>(event);
+
+        // Ctrl+Arrow: duplicate single selected button in the arrow direction
+        if ((ke->modifiers() & Qt::ControlModifier) && m_selection.size() == 1) {
+            UiElement *orig = m_selection.first();
+            auto *btn = dynamic_cast<ButtonElement *>(orig);
+            if (btn) {
+                PageWidget *pg = m_engine->activePage();
+                if (pg) {
+                    const qreal w = orig->elementW();
+                    const qreal h = orig->elementH();
+                    qreal nx = orig->pos().x();
+                    qreal ny = orig->pos().y();
+                    bool doCreate = true;
+                    switch (ke->key()) {
+                    case Qt::Key_Left:  nx = nx - w; break;
+                    case Qt::Key_Right: nx = nx + w; break;
+                    case Qt::Key_Up:    ny = ny - h; break;
+                    case Qt::Key_Down:  ny = ny + h; break;
+                    default: doCreate = false; break;
+                    }
+                    if (doCreate) {
+                        // generate unique id similar to addElement
+                        QString prefix = QStringLiteral("btn_");
+                        QString id;
+                        do {
+                            id = prefix + QString::number(m_nextId++);
+                        } while (pg->element(id));
+
+                        UiElement *created = nullptr;
+
+                        if (orig->elementType() == ElementType::Image) {
+                            auto *src = static_cast<ButtonElement *>(orig);
+                            created = pg->addImageButton(id, nx, ny, w, h, src->imagePath());
+                        } else if (orig->elementType() == ElementType::KeyboardButton) {
+                            auto *src = static_cast<KeyboardButton *>(orig);
+                            created = pg->addKeyboardButton(id, nx, ny, w, h, src->assignedKey());
+                        } else {
+                            created = pg->addButton(id, nx, ny, w, h, orig->label());
+                        }
+
+                        if (created) {
+                            qDebug() << "[EditorOverlay] Duplicated element from" << orig->elementId()
+                                     << "to" << created->elementId()
+                                     << "type" << static_cast<int>(created->elementType());
+                            if (created->elementType() == ElementType::KeyboardButton) {
+                                auto *kbnew = static_cast<KeyboardButton *>(created);
+                                qDebug() << "[EditorOverlay] New assignedKey:" << kbnew->assignedKey();
+                            }
+                            created->setBgColor(orig->bgColor());
+                            created->setTextColor(orig->textColor());
+                            created->setFontSize(orig->fontSize());
+                            created->setEdgeStyle(orig->edgeStyle());
+                            created->setCornerRadius(orig->cornerRadius());
+                            created->setInheritable(orig->isInheritable());
+                            created->setLayer(orig->layer());
+                            created->setBehavior(orig->behavior());
+
+                            if (created->elementType() == ElementType::Button) {
+                                auto *bnew = static_cast<ButtonElement *>(created);
+                                auto *bsrc = static_cast<ButtonElement *>(orig);
+                                if (!bsrc->imagePath().isEmpty()) {
+                                    bnew->setImagePath(bsrc->imagePath());
+                                    bnew->setImageOnly(bsrc->imageOnly());
+                                }
+                                bnew->setActiveColor(bsrc->activeColor());
+                            } else if (created->elementType() == ElementType::KeyboardButton) {
+                                auto *knew = static_cast<KeyboardButton *>(created);
+                                auto *ksrc = static_cast<KeyboardButton *>(orig);
+                                knew->setAssignedKey(ksrc->assignedKey());
+                            }
+
+                            // Select the newly created element
+                            selectElement(created);
+                            updateHandles();
+                        }
+                        return true;
+                    }
+                }
+            }
+        }
+
         qreal step = (ke->modifiers() & Qt::ShiftModifier) ? 1.0 : 10.0;
         QPointF delta;
         switch (ke->key()) {

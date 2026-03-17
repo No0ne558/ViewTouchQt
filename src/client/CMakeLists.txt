@@ -7,6 +7,8 @@ add_executable(vt_client
     MainWindow.cpp
     layout/UiElement.cpp
     layout/ButtonElement.cpp
+    layout/LoginEntryField.cpp
+    layout/KeyboardButton.cpp
     layout/PageWidget.cpp
     layout/LayoutEngine.cpp
     editor/EditorOverlay.cpp

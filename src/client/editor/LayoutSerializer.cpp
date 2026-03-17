@@ -3,6 +3,8 @@
 
 #include "LayoutSerializer.h"
 #include "../layout/ButtonElement.h"
+#include "../layout/KeyboardButton.h"
+#include "../layout/LoginEntryField.h"
 
 #include <QDebug>
 #include <QFile>
@@ -73,8 +75,14 @@ QJsonObject LayoutSerializer::serialize(const LayoutEngine *engine)
         // Only serialize Button elements; other element types are ignored
         // per the new simplified UI policy.
         for (UiElement *elem : pg->elements()) {
-            if (elem->elementType() == ElementType::Button)
+            // Serialize button-like and supported element types
+            if (elem->elementType() == ElementType::Button ||
+                elem->elementType() == ElementType::Image ||
+                elem->elementType() == ElementType::LoginEntry ||
+                elem->elementType() == ElementType::KeyboardButton)
+            {
                 elementsArr.append(serializeElement(elem));
+            }
         }
 
         QJsonObject pageObj;
@@ -100,6 +108,10 @@ QJsonObject LayoutSerializer::serializeElement(const UiElement *elem)
         obj[QStringLiteral("type")] = QStringLiteral("button");
     else if (elem->elementType() == ElementType::Image)
         obj[QStringLiteral("type")] = QStringLiteral("image");
+    else if (elem->elementType() == ElementType::LoginEntry)
+        obj[QStringLiteral("type")] = QStringLiteral("login");
+    else if (elem->elementType() == ElementType::KeyboardButton)
+        obj[QStringLiteral("type")] = QStringLiteral("keyboard");
 
 
     obj[QStringLiteral("x")] = elem->pos().x();
@@ -213,6 +225,18 @@ QJsonObject LayoutSerializer::serializeElement(const UiElement *elem)
         // Serialize layer
         obj[QStringLiteral("layer")] = elem->layer();
         // Behaviour stored above includes PassThrough option
+    }
+
+    // Keyboard Button: include assigned key
+    if (elem->elementType() == ElementType::KeyboardButton) {
+        auto *kb = static_cast<const KeyboardButton *>(elem);
+        obj[QStringLiteral("assignedKey")] = kb->assignedKey();
+    }
+
+    // Login Entry: include max length
+    if (elem->elementType() == ElementType::LoginEntry) {
+        auto *fld = static_cast<const LoginEntryField *>(elem);
+        obj[QStringLiteral("maxLength")] = fld->maxLength();
     }
 
     return obj;
@@ -442,12 +466,129 @@ bool LayoutSerializer::deserializeElement(PageWidget *page, const QJsonObject &o
             img->setImagePath(obj[QStringLiteral("imagePath")].toString());
         if (obj.contains(QStringLiteral("imageOnly")))
             img->setImageOnly(obj[QStringLiteral("imageOnly")].toBool(false));
+    } else if (type == QStringLiteral("login")) {
+        int maxLen = obj.contains(QStringLiteral("maxLength")) ? obj[QStringLiteral("maxLength")].toInt(9) : 9;
+        auto *fld = page->addLoginEntryField(id, x, y, w, h, maxLen);
+        if (!fld) return false;
+        fld->setBgColor(bgColor);
+        fld->setTextColor(textColor);
+        fld->setFontSize(fontSize);
+        fld->setFontFamily(fontFamily);
+        fld->setFontBold(fontBold);
+        if (!edgeToken.isEmpty()) {
+            if (edgeToken == QLatin1String("flat"))
+                fld->setEdgeStyle(UiElement::EdgeStyle::Flat);
+            else if (edgeToken == QLatin1String("raised"))
+                fld->setEdgeStyle(UiElement::EdgeStyle::Raised);
+            else if (edgeToken == QLatin1String("raised2"))
+                fld->setEdgeStyle(UiElement::EdgeStyle::Raised2);
+            else if (edgeToken == QLatin1String("raised3"))
+                fld->setEdgeStyle(UiElement::EdgeStyle::Raised3);
+            else if (edgeToken == QLatin1String("inset"))
+                fld->setEdgeStyle(UiElement::EdgeStyle::Inset);
+            else if (edgeToken == QLatin1String("inset2"))
+                fld->setEdgeStyle(UiElement::EdgeStyle::Inset2);
+            else if (edgeToken == QLatin1String("inset3"))
+                fld->setEdgeStyle(UiElement::EdgeStyle::Inset3);
+            else if (edgeToken == QLatin1String("double"))
+                fld->setEdgeStyle(UiElement::EdgeStyle::Double);
+            else if (edgeToken == QLatin1String("border"))
+                fld->setEdgeStyle(UiElement::EdgeStyle::Border);
+            else if (edgeToken == QLatin1String("outline"))
+                fld->setEdgeStyle(UiElement::EdgeStyle::Outline);
+            else if (edgeToken == QLatin1String("rounded"))
+                fld->setEdgeStyle(UiElement::EdgeStyle::Rounded);
+            else
+                fld->setEdgeStyle(UiElement::EdgeStyle::Flat);
+
+            if (!shadowToken.isEmpty()) {
+                if (shadowToken == QLatin1String("none"))
+                    fld->setShadowIntensity(UiElement::ShadowIntensity::None);
+                else if (shadowToken == QLatin1String("min"))
+                    fld->setShadowIntensity(UiElement::ShadowIntensity::Min);
+                else if (shadowToken == QLatin1String("med"))
+                    fld->setShadowIntensity(UiElement::ShadowIntensity::Med);
+                else if (shadowToken == QLatin1String("max"))
+                    fld->setShadowIntensity(UiElement::ShadowIntensity::Max);
+                else
+                    fld->setShadowIntensity(UiElement::ShadowIntensity::Med);
+            } else {
+                fld->setShadowIntensity(UiElement::ShadowIntensity::Med);
+            }
+        } else {
+            fld->setEdgeStyle(cornerRadius > 0 ? UiElement::EdgeStyle::Rounded : UiElement::EdgeStyle::Flat);
+        }
+        fld->setInheritable(inheritable);
+        if (obj.contains(QStringLiteral("layer")))
+            fld->setLayer(obj[QStringLiteral("layer")].toInt(0));
+    } else if (type == QStringLiteral("keyboard")) {
+        QString assigned = obj.contains(QStringLiteral("assignedKey")) ? obj[QStringLiteral("assignedKey")].toString(label) : label;
+        auto *kb = page->addKeyboardButton(id, x, y, w, h, assigned);
+        if (!kb) return false;
+        kb->setBgColor(bgColor);
+        kb->setTextColor(textColor);
+        kb->setFontSize(fontSize);
+        kb->setFontFamily(fontFamily);
+        kb->setFontBold(fontBold);
+        if (!edgeToken.isEmpty()) {
+            if (edgeToken == QLatin1String("flat"))
+                kb->setEdgeStyle(UiElement::EdgeStyle::Flat);
+            else if (edgeToken == QLatin1String("raised"))
+                kb->setEdgeStyle(UiElement::EdgeStyle::Raised);
+            else if (edgeToken == QLatin1String("inset"))
+                kb->setEdgeStyle(UiElement::EdgeStyle::Inset);
+            else if (edgeToken == QLatin1String("outline"))
+                kb->setEdgeStyle(UiElement::EdgeStyle::Outline);
+            else if (edgeToken == QLatin1String("rounded"))
+                kb->setEdgeStyle(UiElement::EdgeStyle::Rounded);
+            else
+                kb->setEdgeStyle(UiElement::EdgeStyle::Flat);
+
+            if (!shadowToken.isEmpty()) {
+                if (shadowToken == QLatin1String("none"))
+                    kb->setShadowIntensity(UiElement::ShadowIntensity::None);
+                else if (shadowToken == QLatin1String("min"))
+                    kb->setShadowIntensity(UiElement::ShadowIntensity::Min);
+                else if (shadowToken == QLatin1String("med"))
+                    kb->setShadowIntensity(UiElement::ShadowIntensity::Med);
+                else if (shadowToken == QLatin1String("max"))
+                    kb->setShadowIntensity(UiElement::ShadowIntensity::Max);
+                else
+                    kb->setShadowIntensity(UiElement::ShadowIntensity::Med);
+            } else {
+                kb->setShadowIntensity(UiElement::ShadowIntensity::Med);
+            }
+        } else {
+            kb->setEdgeStyle(cornerRadius > 0 ? UiElement::EdgeStyle::Rounded : UiElement::EdgeStyle::Flat);
+        }
+        kb->setInheritable(inheritable);
+        if (obj.contains(QStringLiteral("activeColor")))
+            kb->setActiveColor(QColor(obj[QStringLiteral("activeColor")].toString()));
+        if (obj.contains(QStringLiteral("layer")))
+            kb->setLayer(obj[QStringLiteral("layer")].toInt(0));
+        if (obj.contains(QStringLiteral("behavior"))) {
+            QString s = obj[QStringLiteral("behavior")].toString();
+            if (s == QLatin1String("blink"))
+                kb->setBehavior(UiElement::ButtonBehavior::Blink);
+            else if (s == QLatin1String("toggle"))
+                kb->setBehavior(UiElement::ButtonBehavior::Toggle);
+            else if (s == QLatin1String("none"))
+                kb->setBehavior(UiElement::ButtonBehavior::None);
+            else if (s == QLatin1String("passthrough"))
+                kb->setBehavior(UiElement::ButtonBehavior::PassThrough);
+            else if (s == QLatin1String("doubletap"))
+                kb->setBehavior(UiElement::ButtonBehavior::DoubleTap);
+        }
+        kb->setAcceptedMouseButtons(kb->behavior() == UiElement::ButtonBehavior::PassThrough ? Qt::NoButton : Qt::LeftButton);
+        if (obj.contains(QStringLiteral("assignedKey")))
+            kb->setAssignedKey(obj[QStringLiteral("assignedKey")].toString());
     } else {
         // Skip any non-button element types. This intentionally drops
         // elements like labels, panels, pin entries, keypads, actions, etc.
         qInfo() << "[serializer] Skipping non-button element type:" << type << "(id:" << id << ")";
         return true;
     }
+
 
     return true;
 }

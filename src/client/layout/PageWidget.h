@@ -6,6 +6,8 @@
 
 #include "ButtonElement.h"
 #include "UiElement.h"
+#include "LoginEntryField.h"
+#include "KeyboardButton.h"
 
 #include <QGraphicsScene>
 #include <QHash>
@@ -44,6 +46,15 @@ public:
     ButtonElement *addImageButton(const QString &id, qreal x, qreal y,
                                   qreal w, qreal h, const QString &imagePath = QString());
 
+    /// Create and add a login entry field (masked numeric input).
+    LoginEntryField *addLoginEntryField(const QString &id, qreal x, qreal y,
+                                        qreal w, qreal h, int maxLength = 9);
+
+    /// Create and add an on-screen keyboard button. These buttons are local-only
+    /// by default and emit `virtualKeyPressed` rather than `buttonClicked`.
+    KeyboardButton *addKeyboardButton(const QString &id, qreal x, qreal y,
+                                      qreal w, qreal h, const QString &assignedKey);
+
     /// Create and add a label.
     // Labels, panels and other element types were removed; only buttons remain.
 
@@ -58,6 +69,10 @@ public:
     /// Look up an element by id (nullptr if not found).
     UiElement *element(const QString &id) const;
 
+    /// Clone an existing element (copy visual properties) and return the new element.
+    /// If newId is empty a unique id will be generated. Returns nullptr on failure.
+    UiElement *cloneElement(const QString &srcId, const QString &newId = QString());
+
     /// All elements on this page.
     QList<UiElement *> elements() const { return m_elements.values(); }
 
@@ -69,20 +84,36 @@ public:
     /// Detach all elements from the current scene (called on page switch).
     void detachFromScene();
 
+    /// Default input element management: the element id of the page's
+    /// preferred input field. If empty, the first LoginEntryField found
+    /// on the page will be used as the default.
+    void setDefaultInputElementId(const QString &id) { m_defaultInputId = id; }
+    QString defaultInputElementId() const { return m_defaultInputId; }
+    LoginEntryField *defaultInputField() const;
+
 signals:
     /// Forwarded from any ButtonElement on this page.
     void buttonClicked(const QString &elementId);
+
+    /// Emitted when a `LoginEntryField` on this page is submitted (e.g. Enter pressed).
+    void loginFieldSubmitted(const QString &elementId, const QString &value);
 
     // Only button clicks are forwarded now.
 
 private:
     void registerElement(UiElement *elem);
 
+    // Receive virtual key presses from KeyboardButton instances and route
+    // them to the currently focused LoginEntryField in the scene.
+    void onVirtualKeyPressed(const QString &key);
+
     QString m_name;
     bool    m_systemPage = false;
     QString m_inheritFrom;
     QHash<QString, UiElement *> m_elements;
     QGraphicsScene *m_currentScene = nullptr;
+    QString m_defaultInputId;
+    int m_autoIdCounter = 1;
 };
 
 } // namespace vt

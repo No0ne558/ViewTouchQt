@@ -18,6 +18,8 @@ target_sources(vt_host PRIVATE
     ${CMAKE_SOURCE_DIR}/src/client/MainWindow.cpp
     ${CMAKE_SOURCE_DIR}/src/client/layout/UiElement.cpp
     ${CMAKE_SOURCE_DIR}/src/client/layout/ButtonElement.cpp
+    ${CMAKE_SOURCE_DIR}/src/client/layout/LoginEntryField.cpp
+    ${CMAKE_SOURCE_DIR}/src/client/layout/KeyboardButton.cpp
     ${CMAKE_SOURCE_DIR}/src/client/layout/PageWidget.cpp
     ${CMAKE_SOURCE_DIR}/src/client/layout/LayoutEngine.cpp
     # Editor sources

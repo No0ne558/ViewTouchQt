@@ -6,7 +6,9 @@
 #include "editor/LayoutSerializer.h"
 #include "editor/PageManagerDialog.h"
 #include "layout/UiElement.h"
+#include "layout/KeyboardButton.h"
 #include "displays/DisplayManager.h"
+#include "layout/LoginEntryField.h"
 #include "printing/CupsPrinter.h"
 
 #include <QCoreApplication>
@@ -229,6 +231,33 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
         }
         break;
     }
+    // Route numeric and edit keys to default login entry when not in edit mode
+    if (!m_editor->isEditMode()) {
+        auto *pg = m_engine->activePage();
+        if (pg) {
+            auto *fld = pg->defaultInputField();
+            if (fld) {
+                int k = event->key();
+                if (k == Qt::Key_Backspace) {
+                    fld->backspace();
+                    event->accept();
+                    return;
+                }
+                if (k == Qt::Key_Return || k == Qt::Key_Enter) {
+                    fld->submit();
+                    event->accept();
+                    return;
+                }
+                const QString txt = event->text();
+                if (!txt.isEmpty() && txt.at(0).isDigit()) {
+                    fld->appendKey(txt);
+                    event->accept();
+                    return;
+                }
+            }
+        }
+    }
+
     QMainWindow::keyPressEvent(event);
 }
 
@@ -265,6 +294,10 @@ void MainWindow::openPropertyDialog(UiElement *elem)
                         if (auto *btn = qobject_cast<ButtonElement *>(target)) {
                             btn->setImagePath(dlg.imagePathValue());
                             btn->setImageOnly(dlg.imageOnlyValue());
+                        }
+                    } else if (dlg.newType() == ElementType::KeyboardButton) {
+                        if (auto *kb = qobject_cast<KeyboardButton *>(target)) {
+                            kb->setAssignedKey(dlg.assignedKeyValue());
                         }
                     }
                 }

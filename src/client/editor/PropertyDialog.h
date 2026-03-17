@@ -36,6 +36,8 @@ public:
     /// Image-specific getters
     QString imagePathValue() const;
     bool imageOnlyValue() const;
+    /// Keyboard button-specific getter
+    QString assignedKeyValue() const;
 
     // ── Type-specific property getters (only Button supported now)
     int     actionTypeValue() const;
@@ -84,6 +86,9 @@ private:
     QComboBox *m_imageCombo = nullptr;
     QLabel *m_imagePreview = nullptr;
     QCheckBox *m_imageOnlyChk = nullptr;
+
+    // Keyboard button assigned key
+    QLineEdit *m_assignedKeyEdit = nullptr;
 
     // Common flag
     QCheckBox *m_inheritableChk  = nullptr;

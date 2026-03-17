@@ -371,7 +371,7 @@ void ButtonElement::paint(QPainter *painter,
 
         // If this element is a normal Button (not Image-only) and it has a label,
         // draw the label on top of the image so text overlays the picture.
-        if (!m_imageOnly && m_type == ElementType::Button && !m_label.isEmpty()) {
+        if (!m_imageOnly && (m_type == ElementType::Button || m_type == ElementType::KeyboardButton) && !m_label.isEmpty()) {
             painter->setFont(buildFont());
             // Draw subtle shadow for readability
             painter->setPen(QColor(0, 0, 0, 160));

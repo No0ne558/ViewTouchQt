@@ -72,6 +72,8 @@ signals:
 
     /// Forwarded: any button on any page was clicked.
     void buttonClicked(const QString &pageName, const QString &elementId);
+    /// Forwarded: a login entry field on a page was submitted.
+    void loginFieldSubmitted(const QString &pageName, const QString &elementId, const QString &value);
     /// Forwarded: a keypad button was pressed on a page. (removed)
     /// Forwarded: an action button was triggered on a page. (removed)
 
