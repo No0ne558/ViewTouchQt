@@ -4,7 +4,150 @@
     {
       "name": "Login",
       "systemPage": true,
-      "elements": []
+      "elements": [
+        {
+          "id": "login_entry",
+          "type": "login",
+          "x": 200,
+          "y": 300,
+          "w": 800,
+          "h": 120,
+          "label": "",
+          "maxLength": 9,
+          "layer": 0
+        },
+        {
+          "id": "login_btn",
+          "type": "button",
+          "x": 1020,
+          "y": 300,
+          "w": 200,
+          "h": 120,
+          "label": "Login",
+          "behavior": "none",
+          "layer": 0
+        },
+        {
+          "id": "kb_1",
+          "type": "keyboard",
+          "x": 200,
+          "y": 460,
+          "w": 120,
+          "h": 120,
+          "label": "1",
+          "assignedKey": "1"
+        },
+        {
+          "id": "kb_2",
+          "type": "keyboard",
+          "x": 340,
+          "y": 460,
+          "w": 120,
+          "h": 120,
+          "label": "2",
+          "assignedKey": "2"
+        },
+        {
+          "id": "kb_3",
+          "type": "keyboard",
+          "x": 480,
+          "y": 460,
+          "w": 120,
+          "h": 120,
+          "label": "3",
+          "assignedKey": "3"
+        },
+        {
+          "id": "kb_4",
+          "type": "keyboard",
+          "x": 200,
+          "y": 600,
+          "w": 120,
+          "h": 120,
+          "label": "4",
+          "assignedKey": "4"
+        },
+        {
+          "id": "kb_5",
+          "type": "keyboard",
+          "x": 340,
+          "y": 600,
+          "w": 120,
+          "h": 120,
+          "label": "5",
+          "assignedKey": "5"
+        },
+        {
+          "id": "kb_6",
+          "type": "keyboard",
+          "x": 480,
+          "y": 600,
+          "w": 120,
+          "h": 120,
+          "label": "6",
+          "assignedKey": "6"
+        },
+        {
+          "id": "kb_7",
+          "type": "keyboard",
+          "x": 200,
+          "y": 740,
+          "w": 120,
+          "h": 120,
+          "label": "7",
+          "assignedKey": "7"
+        },
+        {
+          "id": "kb_8",
+          "type": "keyboard",
+          "x": 340,
+          "y": 740,
+          "w": 120,
+          "h": 120,
+          "label": "8",
+          "assignedKey": "8"
+        },
+        {
+          "id": "kb_9",
+          "type": "keyboard",
+          "x": 480,
+          "y": 740,
+          "w": 120,
+          "h": 120,
+          "label": "9",
+          "assignedKey": "9"
+        },
+        {
+          "id": "kb_back",
+          "type": "keyboard",
+          "x": 200,
+          "y": 880,
+          "w": 120,
+          "h": 120,
+          "label": "⌫",
+          "assignedKey": "Backspace"
+        },
+        {
+          "id": "kb_0",
+          "type": "keyboard",
+          "x": 340,
+          "y": 880,
+          "w": 120,
+          "h": 120,
+          "label": "0",
+          "assignedKey": "0"
+        },
+        {
+          "id": "kb_enter",
+          "type": "keyboard",
+          "x": 480,
+          "y": 880,
+          "w": 120,
+          "h": 120,
+          "label": "Enter",
+          "assignedKey": "Enter"
+        }
+      ]
     }
   ]
 }

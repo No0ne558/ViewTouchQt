@@ -46,6 +46,10 @@ public:
     ButtonElement *addImageButton(const QString &id, qreal x, qreal y,
                                   qreal w, qreal h, const QString &imagePath = QString());
 
+    /// Create and add a login button (special button type that triggers login).
+    ButtonElement *addLoginButton(const QString &id, qreal x, qreal y,
+                                  qreal w, qreal h, const QString &label = QString());
+
     /// Create and add a login entry field (masked numeric input).
     LoginEntryField *addLoginEntryField(const QString &id, qreal x, qreal y,
                                         qreal w, qreal h, int maxLength = 9);

@@ -28,6 +28,7 @@ signals:
     void disconnected();
     void buttonAckReceived();
     void layoutSyncReceived(const QByteArray &layoutJson);
+    void validatePinResult(const QString &requestId, bool success, const QString &username, const QString &role, const QString &message);
 
 private slots:
     void onConnected();

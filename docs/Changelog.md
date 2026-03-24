@@ -208,6 +208,12 @@ All notable changes to this project will be documented in this file.
 
   - Verification: performed a full local build — `vt_client`, `vt_host`, and `vt_server` all built successfully after these changes.
 
+  - Authentication: server-side PIN login (2026-03-23)
+    - Added `ValidatePinRequest` and `ValidatePinResponse` protocol messages; client now sends a validate request when the Login button is pressed and the server replies with validation results.
+    - Server-side validation with a hardcoded Super User (username: "Super User", PIN: `13524`).
+    - Added a new `LoginButton` element type with editor and serializer support, and updated `PosClient`/`PosServer` hooks for login flows.
+    - Added a default Login page including an on-screen numeric keypad (0–9, Back, Enter) and preserved layouts across restarts via persistence to `/opt/viewtouch/dat/layout.json`.
+
   - Editor cleanup (2026-03-13)
 
     - Removed leftover action-type UI placeholder from `PropertyDialog`:

@@ -4,6 +4,9 @@
 #include "PosClient.h"
 
 #include <QDebug>
+#include <QJsonDocument>
+#include <QJsonObject>
+
 
 namespace vt {
 
@@ -103,6 +106,23 @@ void PosClient::handleMessage(const Header &hdr, const QByteArray &payload)
         qInfo() << "[client] Layout sync received," << payload.size() << "bytes";
         emit layoutSyncReceived(payload);
         break;
+
+    case MsgType::ValidatePinResponse: {
+        QJsonParseError err;
+        auto doc = QJsonDocument::fromJson(payload, &err);
+        if (err.error != QJsonParseError::NoError) {
+            qWarning() << "[client] Failed to parse ValidatePinResponse:" << err.errorString();
+            break;
+        }
+        QJsonObject obj = doc.object();
+        QString requestId = obj.value("requestId").toString();
+        bool success = obj.value("success").toBool();
+        QString username = obj.value("username").toString();
+        QString role = obj.value("role").toString();
+        QString message = obj.value("message").toString();
+        emit validatePinResult(requestId, success, username, role, message);
+        break;
+    }
 
     default:
         qDebug() << "[client] Unknown message type:" << static_cast<int>(hdr.type);

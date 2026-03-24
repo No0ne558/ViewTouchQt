@@ -8,6 +8,14 @@
 
 #include <QList>
 #include <QTcpServer>
+#include <QHash>
+#include <QPair>
+
+struct UserRecord {
+    QString username;
+    QString pin;
+    QString role;
+};
 
 namespace vt {
 
@@ -25,6 +33,9 @@ public:
     /// Send a message to every connected client.
     void broadcastToAll(MsgType type, const QByteArray &payload = {});
 
+    /// Validate a PIN from a client. Public so ClientSession can forward requests.
+    void validatePin(ClientSession *session, const QString &requestId, const QString &pin);
+
 protected:
     void incomingConnection(qintptr socketDescriptor) override;
 
@@ -35,6 +46,7 @@ private slots:
 private:
     QList<ClientSession *> m_sessions;
     QByteArray             m_currentLayout;   // cached for new-connection push
+    QHash<QString, UserRecord> m_usersByPin;
 };
 
 } // namespace vt

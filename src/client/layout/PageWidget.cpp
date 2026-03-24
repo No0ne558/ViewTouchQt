@@ -67,6 +67,27 @@ ButtonElement *PageWidget::addImageButton(const QString &id, qreal x, qreal y,
     return btn;
 }
 
+ButtonElement *PageWidget::addLoginButton(const QString &id, qreal x, qreal y,
+                                          qreal w, qreal h, const QString &label)
+{
+    QString useId = id;
+    if (useId.isEmpty()) {
+        QString prefix = QStringLiteral("btn_");
+        do { useId = prefix + QString::number(m_autoIdCounter++); } while (m_elements.contains(useId));
+    } else if (m_elements.contains(useId)) {
+        qWarning() << "[layout] Duplicate element id:" << useId << "on page" << m_name;
+        return nullptr;
+    }
+
+    auto *btn = new ButtonElement(useId, x, y, w, h, ElementType::LoginButton);
+    btn->setLabel(label);
+    registerElement(btn);
+
+    connect(btn, &ButtonElement::clicked, this, &PageWidget::buttonClicked);
+
+    return btn;
+}
+
 LoginEntryField *PageWidget::addLoginEntryField(const QString &id, qreal x, qreal y,
                                                 qreal w, qreal h, int maxLength)
 {
@@ -192,6 +213,9 @@ UiElement *PageWidget::replaceElementType(const QString &id, ElementType newType
     if (newType == ElementType::Button) {
         auto *btn = addButton(id, x, y, w, h, label);
         created = btn;
+    } else if (newType == ElementType::LoginButton) {
+        auto *lbtn = addLoginButton(id, x, y, w, h, label);
+        created = lbtn;
     } else if (newType == ElementType::Image) {
         auto *img = addImageButton(id, x, y, w, h, QString());
         created = img;

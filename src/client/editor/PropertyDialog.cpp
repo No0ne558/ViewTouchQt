@@ -55,6 +55,7 @@ void PropertyDialog::setupUi()
     m_typeCombo->addItem(QStringLiteral("Button"), static_cast<int>(ElementType::Button));
     m_typeCombo->addItem(QStringLiteral("Image"), static_cast<int>(ElementType::Image));
     m_typeCombo->addItem(QStringLiteral("Login Entry"), static_cast<int>(ElementType::LoginEntry));
+    m_typeCombo->addItem(QStringLiteral("Login Button"), static_cast<int>(ElementType::LoginButton));
     m_typeCombo->addItem(QStringLiteral("Keyboard Button"), static_cast<int>(ElementType::KeyboardButton));
     // Ensure combo index reflects the element's current type
     int idx = m_typeCombo->findData(static_cast<int>(m_element->elementType()));

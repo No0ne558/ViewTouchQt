@@ -24,6 +24,9 @@ enum class MsgType : std::uint16_t {
     ButtonPress  = 0x0010,
     ButtonAck    = 0x0011,
     LayoutSync   = 0x0020,   // server → client: full layout JSON payload
+    // Authentication messages
+    ValidatePinRequest  = 0x0030, // client → server: JSON {requestId,page,elementId,pin}
+    ValidatePinResponse = 0x0031, // server → client: JSON {requestId,success,username,role,message}
 };
 
 // ── Fixed header (10 bytes) ─────────────────────────────────────────────────

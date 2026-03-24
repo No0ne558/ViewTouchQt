@@ -3,6 +3,10 @@
 
 #include "ClientSession.h"
 
+#include "PosServer.h"
+#include <QJsonDocument>
+#include <QJsonObject>
+
 #include <QDebug>
 
 namespace vt {
@@ -97,7 +101,7 @@ void ClientSession::processBuffer()
     }
 }
 
-void ClientSession::handleMessage(const Header &hdr, const QByteArray & /*payload*/)
+void ClientSession::handleMessage(const Header &hdr, const QByteArray &payload)
 {
     switch (hdr.type) {
     case MsgType::HeartbeatAck:
@@ -110,6 +114,26 @@ void ClientSession::handleMessage(const Header &hdr, const QByteArray & /*payloa
         send(MsgType::ButtonAck);
         emit buttonPressed(this);
         break;
+
+    case MsgType::ValidatePinRequest: {
+        // Parse JSON payload and forward to PosServer for validation.
+        QJsonParseError err;
+        auto doc = QJsonDocument::fromJson(payload, &err);
+        if (err.error != QJsonParseError::NoError) {
+            qWarning() << "[server] Bad ValidatePinRequest JSON from" << id() << ":" << err.errorString();
+            break;
+        }
+        QJsonObject obj = doc.object();
+        QString requestId = obj.value("requestId").toString();
+        QString pin = obj.value("pin").toString();
+        auto *srv = qobject_cast<PosServer *>(parent());
+        if (srv) {
+            srv->validatePin(this, requestId, pin);
+        } else {
+            qWarning() << "[server] Cannot find PosServer parent to validate PIN";
+        }
+        break;
+    }
 
     default:
         qDebug() << "[server] Unknown message type:" << static_cast<int>(hdr.type);

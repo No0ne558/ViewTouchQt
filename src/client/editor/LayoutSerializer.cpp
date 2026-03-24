@@ -112,6 +112,8 @@ QJsonObject LayoutSerializer::serializeElement(const UiElement *elem)
         obj[QStringLiteral("type")] = QStringLiteral("login");
     else if (elem->elementType() == ElementType::KeyboardButton)
         obj[QStringLiteral("type")] = QStringLiteral("keyboard");
+    else if (elem->elementType() == ElementType::LoginButton)
+        obj[QStringLiteral("type")] = QStringLiteral("loginbutton");
 
 
     obj[QStringLiteral("x")] = elem->pos().x();
@@ -521,6 +523,65 @@ bool LayoutSerializer::deserializeElement(PageWidget *page, const QJsonObject &o
         fld->setInheritable(inheritable);
         if (obj.contains(QStringLiteral("layer")))
             fld->setLayer(obj[QStringLiteral("layer")].toInt(0));
+    } else if (type == QStringLiteral("loginbutton")) {
+        auto *btn = page->addLoginButton(id, x, y, w, h, label);
+        if (!btn) return false;
+        btn->setBgColor(bgColor);
+        btn->setTextColor(textColor);
+        btn->setFontSize(fontSize);
+        btn->setFontFamily(fontFamily);
+        btn->setFontBold(fontBold);
+        if (!edgeToken.isEmpty()) {
+            if (edgeToken == QLatin1String("flat"))
+                btn->setEdgeStyle(UiElement::EdgeStyle::Flat);
+            else if (edgeToken == QLatin1String("raised"))
+                btn->setEdgeStyle(UiElement::EdgeStyle::Raised);
+            else if (edgeToken == QLatin1String("inset"))
+                btn->setEdgeStyle(UiElement::EdgeStyle::Inset);
+            else if (edgeToken == QLatin1String("outline"))
+                btn->setEdgeStyle(UiElement::EdgeStyle::Outline);
+            else if (edgeToken == QLatin1String("rounded"))
+                btn->setEdgeStyle(UiElement::EdgeStyle::Rounded);
+            else
+                btn->setEdgeStyle(UiElement::EdgeStyle::Flat);
+
+            if (!shadowToken.isEmpty()) {
+                if (shadowToken == QLatin1String("none"))
+                    btn->setShadowIntensity(UiElement::ShadowIntensity::None);
+                else if (shadowToken == QLatin1String("min"))
+                    btn->setShadowIntensity(UiElement::ShadowIntensity::Min);
+                else if (shadowToken == QLatin1String("med"))
+                    btn->setShadowIntensity(UiElement::ShadowIntensity::Med);
+                else if (shadowToken == QLatin1String("max"))
+                    btn->setShadowIntensity(UiElement::ShadowIntensity::Max);
+                else
+                    btn->setShadowIntensity(UiElement::ShadowIntensity::Med);
+            } else {
+                btn->setShadowIntensity(UiElement::ShadowIntensity::Med);
+            }
+        } else {
+            btn->setEdgeStyle(cornerRadius > 0 ? UiElement::EdgeStyle::Rounded : UiElement::EdgeStyle::Flat);
+        }
+        btn->setInheritable(inheritable);
+        if (obj.contains(QStringLiteral("activeColor")))
+            btn->setActiveColor(QColor(obj[QStringLiteral("activeColor")].toString()));
+        if (obj.contains(QStringLiteral("layer")))
+            btn->setLayer(obj[QStringLiteral("layer")].toInt(0));
+        if (obj.contains(QStringLiteral("behavior"))) {
+            QString s = obj[QStringLiteral("behavior")].toString();
+            if (s == QLatin1String("blink"))
+                btn->setBehavior(UiElement::ButtonBehavior::Blink);
+            else if (s == QLatin1String("toggle"))
+                btn->setBehavior(UiElement::ButtonBehavior::Toggle);
+            else if (s == QLatin1String("none"))
+                btn->setBehavior(UiElement::ButtonBehavior::None);
+            else if (s == QLatin1String("passthrough"))
+                btn->setBehavior(UiElement::ButtonBehavior::PassThrough);
+            else if (s == QLatin1String("doubletap"))
+                btn->setBehavior(UiElement::ButtonBehavior::DoubleTap);
+        }
+        // Ensure runtime mouse acceptance matches behaviour when loaded
+        btn->setAcceptedMouseButtons(btn->behavior() == UiElement::ButtonBehavior::PassThrough ? Qt::NoButton : Qt::LeftButton);
     } else if (type == QStringLiteral("keyboard")) {
         QString assigned = obj.contains(QStringLiteral("assignedKey")) ? obj[QStringLiteral("assignedKey")].toString(label) : label;
         auto *kb = page->addKeyboardButton(id, x, y, w, h, assigned);

@@ -28,6 +28,7 @@
 #include <QFileInfo>
 #include <QFile>
 #include <unistd.h>
+#include <QUuid>
 
 namespace vt {
 
@@ -58,8 +59,26 @@ MainWindow::MainWindow(PosClient *client, QWidget *parent)
     m_displayMgr->loadFromFile(DisplayManager::defaultFilePath());
 
     // Forward any button click to the server and track which button was pressed.
+    // Special-case: Login page button with id "login_btn" will trigger PIN validation.
     connect(m_engine, &LayoutEngine::buttonClicked, this,
-            [this](const QString & /*pageName*/, const QString &elementId) {
+            [this](const QString &pageName, const QString &elementId) {
+                if (pageName == QStringLiteral("Login") && elementId == QStringLiteral("login_btn")) {
+                    if (auto *pg = m_engine->page(pageName)) {
+                        if (auto *fld = pg->defaultInputField()) {
+                            QString pin = fld->value();
+                            // Build request JSON
+                            QJsonObject req;
+                            req[QStringLiteral("requestId")] = QUuid::createUuid().toString(QUuid::WithoutBraces);
+                            req[QStringLiteral("page")] = pageName;
+                            req[QStringLiteral("elementId")] = fld->elementId();
+                            req[QStringLiteral("pin")] = pin;
+                            QJsonDocument doc(req);
+                            m_client->send(MsgType::ValidatePinRequest, doc.toJson(QJsonDocument::Compact));
+                        }
+                    }
+                    return; // do not forward as generic button
+                }
+
                 m_lastPressedButtonId = elementId;
                 m_client->send(MsgType::ButtonPress);
             });
@@ -76,6 +95,20 @@ MainWindow::MainWindow(PosClient *client, QWidget *parent)
         }
         m_lastPressedButtonId.clear();
     });
+
+    // Handle PIN validation responses from server.
+    connect(m_client, &PosClient::validatePinResult, this,
+            [this](const QString & /*requestId*/, bool success, const QString &username, const QString & /*role*/, const QString & /*message*/) {
+                if (success) {
+                    qInfo() << "[client] Login successful for" << username;
+                    // Navigate to a main page if available.
+                    if (m_engine->page(QStringLiteral("Main")))
+                        m_engine->showPage(QStringLiteral("Main"));
+                } else {
+                    qWarning() << "[client] Login failed";
+                    QMessageBox::warning(this, QStringLiteral("Login"), QStringLiteral("Invalid PIN"));
+                }
+            });
 
     // Keypad and action button features removed; no connections.
 
@@ -344,22 +377,22 @@ bool MainWindow::loadLayoutIfExists()
 
 void MainWindow::ensureSystemPages()
 {
-    // Ensure only the Login page exists and is shown.  Clear any other pages
-    // that may have been loaded from an existing layout.
-    if (m_engine->pageNames().size() > 1) {
-        // Remove all existing pages and recreate a single Login page.
-        m_engine->clearAll();
-    }
-
-    if (!m_engine->page(QStringLiteral("Login"))) {
-        // Create a minimal, empty Login page (no inputs or buttons).
+    // Ensure a Login system page exists. Do NOT clear existing pages; preserve
+    // any layout loaded from disk so custom elements (like a login button)
+    // remain intact across restarts.
+    if (m_engine->pageNames().isEmpty()) {
         auto *pg = m_engine->createPage(QStringLiteral("Login"));
-        pg->setSystemPage(true);
+        if (pg) pg->setSystemPage(true);
     } else {
-        m_engine->page(QStringLiteral("Login"))->setSystemPage(true);
+        if (!m_engine->page(QStringLiteral("Login"))) {
+            auto *pg = m_engine->createPage(QStringLiteral("Login"));
+            if (pg) pg->setSystemPage(true);
+        } else {
+            m_engine->page(QStringLiteral("Login"))->setSystemPage(true);
+        }
     }
 
-    // Show Login page only.
+    // Show Login page (preserve other pages so saved layout elements survive).
     m_engine->showPage(QStringLiteral("Login"));
 }
 void MainWindow::buildDefaultLoginPage()
